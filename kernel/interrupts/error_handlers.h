@@ -1,4 +1,6 @@
 
+#pragma once
+
 #include <stdint.h>
 
 struct interrupt_frame {
@@ -37,7 +39,6 @@ __attribute__((interrupt)) void
 general_protection(struct interrupt_frame *frame, uint32_t error_code);
 __attribute__((interrupt)) void page_fault(struct interrupt_frame *frame,
                                            uint32_t error_code);
-__attribute__ ((interrupt))
 //
 // 15 reserved
 void x87_floating_point(struct interrupt_frame *frame);

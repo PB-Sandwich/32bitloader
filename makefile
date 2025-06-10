@@ -5,13 +5,21 @@ SOURCE_DIR := .
 KERNEL_SOURCE_DIR := $(SOURCE_DIR)/kernel
 BUILD_DIR := build
 
-TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o $(BUILD_DIR)/kernel/print.c.o $(BUILD_DIR)/kernel/tty.c.o $(BUILD_DIR)/kernel/idt.c.o $(BUILD_DIR)/kernel/interrupts/error_handlers.int.c.o
+TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
+		$(BUILD_DIR)/kernel/print.c.o \
+		$(BUILD_DIR)/kernel/tty.c.o \
+		$(BUILD_DIR)/kernel/idt.c.o \
+		$(BUILD_DIR)/kernel/interrupts/error_handlers.int.c.o \
+		$(BUILD_DIR)/kernel/inboutb.c.o \
+		$(BUILD_DIR)/kernel/memutils.c.o \
+		$(BUILD_DIR)/kernel/interrupts/irq_handlers.int.c.o
+
 TARGETS_BIN := $(BUILD_DIR)/kernel/boot.bin
 TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
 
 CC := i386-elf-gcc
 CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g
-LINKER = i386-elf-ld
+LINKER := i386-elf-ld
 
 QEMU_FLAGS := -m 512M
 
@@ -44,6 +52,6 @@ $(BUILD_DIR)/kernel/%.int.c.o: $(KERNEL_SOURCE_DIR)/%.c
 
 $(BUILD_DIR)/kernel/%.asm.o: $(KERNEL_SOURCE_DIR)/%.asm
 	@mkdir -p $(dir $@)
-	nasm -f elf64 -g -o $@ $<
+	nasm -f elf32 -g -o $@ $<
 
 
