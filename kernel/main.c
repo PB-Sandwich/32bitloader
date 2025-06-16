@@ -153,7 +153,27 @@ int kernel_entry(struct GDT* gdt)
     // execute app
     printf("executing app\n");
     void (*entry_fn)(void) = (void (*)(void))(0x300000 + app->entry + sizeof(struct App));
-    entry_fn();
+
+    struct {
+        uint32_t offset;
+        uint16_t selector;
+    } __attribute__((packed)) far_jump_target = {
+        .offset = (uint32_t)entry_fn, // target to jump to
+        .selector = 0x08, // code segment to load
+    };
+
+    __asm__ volatile (
+        "mov %0, %%esp\n\t"
+        :
+        : "r"(0x80000)
+        : "esp"
+    );
+
+    __asm__ volatile (
+        "ljmp *%0"
+        :
+        : "m"(far_jump_target)
+    );
 
     while (1)
         ;

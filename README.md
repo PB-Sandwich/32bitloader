@@ -1,11 +1,11 @@
 # x86 32 Bit Loader
 
-Loads a x86 32 bit app into memory address 0x300000 (3Mb) and provides some basic syscalls.
+Loads a x86 32 bit app into memory address 0x300008 (3Mb) and provides some basic syscalls.
 
 ## Making an App
 
-The makefile has the variable APP_BIN which you set to the path of your apps binary path, it should be linked for memory address 0x300000.
-It also has a variable APP_ENTRY which lets you define the offset into where it gets loaded (address 0x300000) that the entry function is.
+The makefile has the variable APP_BIN which you set to the path of your apps binary path, it should be linked for memory address 0x300008.
+It also has a variable APP_ENTRY which lets you define the offset into where it gets loaded (address 0x300008) that the entry function is.
 The app will run at ring 0 (most privileged).
 
 ## Syscalls
