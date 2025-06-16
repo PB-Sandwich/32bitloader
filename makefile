@@ -12,7 +12,8 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/interrupts/error_handlers.int.c.o \
 		$(BUILD_DIR)/kernel/inboutb.c.o \
 		$(BUILD_DIR)/kernel/memutils.c.o \
-		$(BUILD_DIR)/kernel/interrupts/irq_handlers.int.c.o
+		$(BUILD_DIR)/kernel/interrupts/irq_handlers.int.c.o \
+		$(BUILD_DIR)/kernel/ata.c.o
 
 TARGETS_BIN := $(BUILD_DIR)/kernel/boot.bin
 TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
@@ -26,7 +27,7 @@ QEMU_FLAGS := -m 512M
 .PHONY: all clean run
 
 run: all
-	qemu-system-x86_64 -fda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS)
+	qemu-system-x86_64 -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS)
 
 all: $(TARGETS)
 	$(LINKER) -nostdlib -T linker.ld -o $(BUILD_DIR)/kernel.elf $(TARGETS_ELF)

@@ -1,9 +1,9 @@
 [org 0x7c00]
-
+[bits 16]
 
 TEXT_BUFFER equ 0xb8000
-
 TEMP_KERNEL_LOCATION equ 0x7f00
+
 BOOT_DISK: db 0
 NUMBER_OF_SECTORS: db 0
     mov [BOOT_DISK], dl
@@ -15,21 +15,11 @@ NUMBER_OF_SECTORS: db 0
     mov bp, 0xf000 ; setting stack
     mov sp, bp
 
-    mov bx, TEMP_KERNEL_LOCATION ; segment offset
-    mov al, [NUMBER_OF_SECTORS] ; number of sectors to read
 
-    mov ah, 2 ; bios code
-
-    mov ch, 0 ; cylinder number
-    mov dh, 0 ; head number
-    mov cl, 2 ; sector number (starts at 1 instead of 0)
-
-    mov dl, [BOOT_DISK]
-    int 0x13
-
-    jc failed_to_read_disk
-    cmp al, [NUMBER_OF_SECTORS]
-    jne failed_to_read_disk
+mov ah, 0x42
+mov dl, [BOOT_DISK]
+mov si, DAP
+int 0x13
 
     ; set vidoe mode to 80x25 text mode
     mov ah, 0x0
@@ -42,6 +32,15 @@ NUMBER_OF_SECTORS: db 0
 
 failed_to_read_disk:
     hlt
+
+DAP:
+    db 0x10          ; size of packet
+    db 0             ; reserved
+    dw 50            ; number of sectors to read
+    dw TEMP_KERNEL_LOCATION
+    dw 0             ; segment (we’re in real mode still)
+    dq 1             ; starting LBA (starts at 0, so LBA=1 = second sector)
+
 
 ; Entering protected mode
 GDT_Start:
@@ -101,5 +100,27 @@ start_protected_mode:
 
     hlt
 
-times 510-($-$$) db 0
+times 440-($-$$) db 0
+dd 0 ; unique disk id
+dw 0 ; reserved
+partition1:
+    db 0x80            ; Bootable (0x80 = bootable, 0x00 = not)
+    db 0x00            ; Starting CHS - head
+    db 0x01            ; Starting CHS - sector (bits 0-5) + cylinder (bits 6-7)
+    db 0x00            ; Starting CHS - cylinder (low 8 bits)
+    db 0x0C            ; Partition type (0x0B = FAT32 CHS, 0x0C = FAT32 LBA, 0x83 = Linux)
+    db 0x00            ; Ending CHS - head
+    db 0x2048          ; Ending CHS - sector
+    db 0x00            ; Ending CHS - cylinder
+    dd 1               ; Starting LBA (start at sector 1)
+    dd 2048            ; Number of sectors in partition
+partition2:
+    dq 0 ; unused
+    dq 0 ; unused
+partition3:
+    dq 0 ; unused
+    dq 0 ; unused
+partition4:
+    dq 0 ; unused
+    dq 0 ; unused
 dw 0xaa55

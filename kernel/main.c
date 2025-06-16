@@ -1,3 +1,4 @@
+#include "ata.h"
 #include "idt.h"
 #include "inboutb.h"
 #include "interrupts/error_handlers.h"
@@ -20,14 +21,14 @@ struct GDT_descriptor {
 
 int kernel_entry(struct GDT* gdt)
 {
-    printf("GDT is at address %x\n", gdt);
-
     // interrupt init
+    printf("setting interrupt descriptor table\n");
     struct IDTPointer idt_pointer;
     idt_pointer.limit = 0xffff;
     idt_pointer.base = IDT_BASE;
     __asm__ volatile("lidt (%0)" : : "r"(&idt_pointer));
 
+    printf("setting exception handlers\n");
     struct IDTEntry* idt_entries = (struct IDTEntry*)IDT_BASE;
     idt_entries[0] = make_idt_entry((uint32_t*)divide_by_zero, 0x8, 0x0E);
     idt_entries[1] = make_idt_entry((uint32_t*)debug, 0x8, 0xE);
@@ -58,6 +59,7 @@ int kernel_entry(struct GDT* gdt)
     // 31 reserved
 
     // tss init
+    printf("setting task segment\n");
     static struct TSS tss = { 0 };
     tss.esp0 = 0x80000; // set the esp for privilege lvel zero switches
     tss.ss0 = 0x10; // stack segment for privilege level zero switches
@@ -79,11 +81,13 @@ int kernel_entry(struct GDT* gdt)
         .base = (uint32_t)gdt
     };
 
+    printf("reloading global descriptor table and task register\n");
     __asm__ volatile("lgdt (%0)" : : "r"(&gdt_descriptor)); // load the new GDT descriptor
     __asm__ volatile("ltr %%ax" : : "a"((3 << 3) | 0x0)); // load the TSS into the task register
 
     // initializing pic
     // https://wiki.osdev.org/8259_PIC
+    printf("initializing programmable interrupt controller\n");
     outb(PIC1_CMD, ICW1_INIT | ICW1_ICW4);
     io_wait();
     outb(PIC2_CMD, ICW1_INIT | ICW1_ICW4);
@@ -104,17 +108,21 @@ int kernel_entry(struct GDT* gdt)
     outb(PIC2_DATA, ICW4_8086);
     io_wait();
 
-    // mask everything but the keyboard irq (1) and spurious irq (7, 15)
+    // mask everything but the keyboard irq (1) and spurious irq (7, 15) and the floppy disk (6)
     // because thats all we care about for now
-    outb(PIC1_DATA, 0b01111101);
+    outb(PIC1_DATA, 0b00111101);
     outb(PIC2_DATA, 0b01111111);
 
+    printf("setting interrupt request handlers\n");
     idt_entries[33] = make_idt_entry((uint32_t*)irq1_keyboard, 0x8, 0xE);
+    idt_entries[38] = make_idt_entry((uint32_t*)irq6_floppy, 0x8, 0xE);
     idt_entries[39] = make_idt_entry((uint32_t*)irq7_15_spurious, 0x8, 0xE);
     idt_entries[47] = make_idt_entry((uint32_t*)irq7_15_spurious, 0x8, 0xE);
 
+    printf("enableing interrupts\n");
     __asm__ volatile("sti"); // reenable maskable interrupts
 
-    while(1);
+    while (1)
+        ;
     return 0;
 }
