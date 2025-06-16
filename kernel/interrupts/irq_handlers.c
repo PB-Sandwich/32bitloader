@@ -13,15 +13,11 @@
 
 void irq1_keyboard(struct interrupt_frame* frame)
 {
-    int key = inb(0x60);
-    printf("keyboard pressed: %x\n", key);
-    outb(PIC1_CMD, PIC_EOI);
-    return;
-}
-
-__attribute__((interrupt)) void irq6_floppy(struct interrupt_frame* frame)
-{
-    printf("floppy\n");
+    scancode = inb(0x60);
+    key_pressed = 1;
+    if (keyboard_function != 0) {
+        keyboard_function(scancode);
+    }
     outb(PIC1_CMD, PIC_EOI);
     return;
 }

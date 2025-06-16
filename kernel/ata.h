@@ -1,3 +1,6 @@
+
+#pragma once
+
 #include <stdint.h>
 
 #define ATA_DATA       0x1F0

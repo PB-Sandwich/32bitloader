@@ -1,13 +1,8 @@
 #include "tty.h"
 #include <stdint.h>
 
-#define VGA_WIDTH 80
-#define VGA_HEIGHT 25
-
 uint8_t cursor_row = 0;
 uint8_t cursor_col = 0;
-
-uint16_t* text_buffer = (uint16_t*)0xb8000;
 
 uint8_t color = White | Black << 4;
 

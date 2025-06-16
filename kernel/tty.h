@@ -3,6 +3,11 @@
 
 #include <stdint.h>
 
+#define VGA_WIDTH 80
+#define VGA_HEIGHT 25
+
+static uint16_t* text_buffer = (uint16_t*)0xb8000;
+
 enum {
     Black,
     Blue,

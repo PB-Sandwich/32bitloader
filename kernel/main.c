@@ -2,6 +2,7 @@
 #include "idt.h"
 #include "inboutb.h"
 #include "interrupts/error_handlers.h"
+#include "interrupts/system_calls.h"
 #include "interrupts/irq_handlers.h"
 #include "memutils.h"
 #include "pic.h"
@@ -18,6 +19,11 @@ struct GDT_descriptor {
     uint16_t limit;
     uint32_t base;
 } __attribute__((packed));
+
+struct App {
+    uint32_t size;
+    uint32_t entry;
+};
 
 int kernel_entry(struct GDT* gdt)
 {
@@ -108,19 +114,46 @@ int kernel_entry(struct GDT* gdt)
     outb(PIC2_DATA, ICW4_8086);
     io_wait();
 
-    // mask everything but the keyboard irq (1) and spurious irq (7, 15) and the floppy disk (6)
+    // mask everything but the keyboard irq (1) and spurious irq (7, 15)
     // because thats all we care about for now
-    outb(PIC1_DATA, 0b00111101);
+    outb(PIC1_DATA, 0b01111101);
     outb(PIC2_DATA, 0b01111111);
 
     printf("setting interrupt request handlers\n");
     idt_entries[33] = make_idt_entry((uint32_t*)irq1_keyboard, 0x8, 0xE);
-    idt_entries[38] = make_idt_entry((uint32_t*)irq6_floppy, 0x8, 0xE);
     idt_entries[39] = make_idt_entry((uint32_t*)irq7_15_spurious, 0x8, 0xE);
     idt_entries[47] = make_idt_entry((uint32_t*)irq7_15_spurious, 0x8, 0xE);
 
-    printf("enableing interrupts\n");
+    printf("enableing maskable interrupts\n");
     __asm__ volatile("sti"); // reenable maskable interrupts
+
+    printf("setting syscall handler\n");
+    idt_entries[0x40] = make_idt_entry((uint32_t*)syscall, 0x8, 0xE);
+
+    // loading app
+    printf("loading app...\n");
+
+    const int sector_size = 512;
+    const int sector_offset = 0x10000 / 512;
+
+    printf("loading sector %d\n", sector_offset);
+
+    struct App* app = (struct App*)0x300000;
+
+    ata_read_sector(sector_offset, (uint8_t*)app);
+    printf("app size: %x\napp entry: %x\n", app->size, app->entry);
+
+    int num_sectors = app->size / 512;
+    printf("loading %d more sectors...\n", num_sectors);
+    for (int i = 0; i < num_sectors; i++) {
+        printf("loading sector %d\n", sector_offset + i);
+        ata_read_sector(sector_offset + i, (uint8_t*)(0x300000 + (sector_size * i)));
+    }
+
+    // execute app
+    printf("executing app\n");
+    void (*entry_fn)(void) = (void (*)(void))(0x300000 + app->entry + sizeof(struct App));
+    entry_fn();
 
     while (1)
         ;
