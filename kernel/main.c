@@ -2,8 +2,8 @@
 #include "idt.h"
 #include "inboutb.h"
 #include "interrupts/error_handlers.h"
-#include "interrupts/system_calls.h"
 #include "interrupts/irq_handlers.h"
+#include "interrupts/system_calls.h"
 #include "memutils.h"
 #include "pic.h"
 #include "print.h"
@@ -162,18 +162,18 @@ int kernel_entry(struct GDT* gdt)
         .selector = 0x08, // code segment to load
     };
 
-    __asm__ volatile (
+    // set stack
+    __asm__ volatile(
         "mov %0, %%esp\n\t"
         :
         : "r"(0x80000)
-        : "esp"
-    );
+        : "esp");
 
-    __asm__ volatile (
+    // jump to app
+    __asm__ volatile(
         "ljmp *%0"
         :
-        : "m"(far_jump_target)
-    );
+        : "m"(far_jump_target));
 
     while (1)
         ;

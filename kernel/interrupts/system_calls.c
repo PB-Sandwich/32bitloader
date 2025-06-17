@@ -4,53 +4,70 @@
 #include "irq_handlers.h"
 #include <stdint.h>
 
-void syscall(struct interrupt_frame* frame)
-{
-    uint32_t eax_val;
-    uint32_t ebx_val;
-    uint32_t ecx_val;
-    uint32_t edx_val;
-    __asm__ __volatile__("mov %%eax, %0" : "=r"(eax_val));
-    __asm__ __volatile__("mov %%ebx, %0" : "=r"(ebx_val));
-    __asm__ __volatile__("mov %%ecx, %0" : "=r"(ecx_val));
-    __asm__ __volatile__("mov %%edx, %0" : "=r"(edx_val));
+struct syscall_regs {
+    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
+};
 
-    switch (eax_val) {
+void syscall_c(struct syscall_regs* regs)
+{
+    switch (regs->eax) {
     case 0x00:
         break;
     case 0x01:
         clear();
         break;
     case 0x02:
-        print_string((uint8_t*)ebx_val);
+        print_string((uint8_t*)regs->ebx);
         break;
     case 0x03:
-        ebx_val = (uint32_t)text_buffer;
-        ecx_val = VGA_WIDTH;
-        edx_val = VGA_HEIGHT;
+        regs->ebx = (uint32_t)text_buffer;
+        regs->ecx = VGA_WIDTH;
+        regs->edx = VGA_HEIGHT;
         break;
     case 0x04:
+        uint8_t pos = ((regs->ebx & 0xf) << 4) | (regs->ecx & 0xf);
+        set_cursor_pos(pos);
         break;
     case 0x05:
-        key_pressed = 0;
-        while (!key_pressed)
+        clear_key_pressed();
+        __asm__ volatile("sti");
+        uint8_t tmp;
+        while (key_pressed() == 0)
             ;
-        ebx_val = scancode;
+        __asm__ volatile("cli");
+        regs->ebx = scancode();
         break;
     case 0x06:
-        keyboard_function = (void*)ebx_val;
+        set_keyboard_function((void*)regs->ebx);
         break;
     case 0x07:
-        for (int i = 0; i < ecx_val; i++) {
-            ata_read_sector(ebx_val + i, (uint8_t*)(edx_val + (i * 512)));
+        for (int i = 0; i < regs->ecx; i++) {
+            ata_read_sector(regs->ebx + i, (uint8_t*)(regs->edx + (i * 512)));
         }
         break;
     case 0x08:
-        for (int i = 0; i < ecx_val; i++) {
-            ata_write_sector(ebx_val + i, (uint8_t*)(edx_val + (i * 512)));
+        for (int i = 0; i < regs->ecx; i++) {
+            ata_write_sector(regs->ebx + i, (uint8_t*)(regs->edx + (i * 512)));
         }
         break;
     default:
         break;
     }
+}
+
+void syscall(struct interrupt_frame* frame)
+{
+    __asm__ __volatile__(
+        "pushf\n\t"
+        "pusha\n\t"
+        "mov %%esp, %%eax\n\t" // Move pointer to pushed registers into eax
+        "push %%eax\n\t" // Push as argument
+        "call syscall_c\n\t"
+        "add $4, %%esp\n\t"
+        "popa\n\t"
+        "popf\n\t"
+        "iret\n\t"
+        :
+        :
+        : "eax");
 }

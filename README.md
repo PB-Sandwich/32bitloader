@@ -4,7 +4,7 @@ Loads a x86 32 bit app into memory address 0x300008 (3Mb) and provides some basi
 
 ## Making an App
 
-The makefile has the variable APP_BIN which you set to the path of your apps binary path, it should be linked for memory address 0x300008.
+The makefile has the variable APP_BIN which you set to the path of your apps binary, it should be linked for memory address 0x300008.
 It also has a variable APP_ENTRY which lets you define the offset into where it gets loaded (address 0x300008) that the entry function is.
 The app will run at ring 0 (most privileged).
 
@@ -26,10 +26,10 @@ Prints the string pointed to by `ebx`.
 Returns info about the text buffer (location, `ebx`; width, `ecx`; height `edx`).
 
 ### 0x04
-NOP
+Sets the cursor pos to x `ebx` and y `ecx`. 
 
 ### 0x05
-Waits for a key press and returns it in `ebx`.
+Returns the last key pressed in `ebx`.
 
 ### 0x06
 Lets you set a function the keyboard handler will call and pass the scancode to (`void keyboard(uint8_t scancode)`).
