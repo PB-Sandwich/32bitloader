@@ -25,9 +25,9 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 TARGETS_BIN := $(BUILD_DIR)/kernel/boot.bin
 TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
 
-CC := i386-elf-gcc
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g
-LINKER := i386-elf-ld
+CC := gcc
+CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32
+LINKER := ld -m elf_i386
 
 QEMU_FLAGS := -m 512M
 
