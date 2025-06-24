@@ -25,8 +25,7 @@ void syscall_c(struct syscall_regs* regs)
         regs->edx = VGA_HEIGHT;
         break;
     case 0x04:
-        uint8_t pos = ((regs->ebx & 0xf) << 4) | (regs->ecx & 0xf);
-        set_cursor_pos(pos);
+        set_cursor_pos(regs->ebx, regs->ecx);
         break;
     case 0x05:
         clear_key_pressed();

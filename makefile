@@ -1,7 +1,7 @@
 
-# the app that it will load and its entry point offset
-APP_BIN = build/examples/main.bin
-APP_ENTRY = 0
+# the path it will make the filesystem from
+# the script will use any elf files entry point and make it to a binary file
+FILE_SYSTEM = $(BUILD_DIR)/root
 
 APP_SIZE=$$(stat --format="%s" $(APP_BIN))
 
@@ -28,7 +28,8 @@ TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
 
 CC := clang
 CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector
-LINKER := ld -m elf_i386
+LD := ld
+LDFLAGS := -m elf_i386 -nostdlib -T linker.ld 
 
 QEMU_FLAGS := -m 512M
 
@@ -37,42 +38,49 @@ QEMU_FLAGS := -m 512M
 example:
 	make --file examples/makefile all
 
-run-ex: example run
-
 run: all
 	qemu-system-x86_64 -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS)
 
 all: $(TARGETS)
-	$(LINKER) -nostdlib -T linker.ld -o $(BUILD_DIR)/kernel.elf $(TARGETS_ELF)
-	objcopy -O binary $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/kernel.bin
-	cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).img
+	@echo "Linking"
+	@$(LD) $(LDFLAGS) -o $(BUILD_DIR)/kernel.elf $(TARGETS_ELF)
 
-	# fill to 0xffff
-	truncate -s 65536 $(BUILD_DIR)/$(NAME).img
-	printf "%08x" $(APP_SIZE) | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/' | xxd -r -p >> $(BUILD_DIR)/$(NAME).img
-	printf "%08x" $(APP_ENTRY) | sed 's/\(..\)\(..\)\(..\)\(..\)/\4\3\2\1/' | xxd -r -p >> $(BUILD_DIR)/$(NAME).img
+	@echo "Making raw binary"
+	@objcopy -O binary $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/kernel.bin
+	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).img
 
-	cat $(APP_BIN) >> $(BUILD_DIR)/$(NAME).img
+	@echo "Preparing disk image"
+	@# fill to 0xffff
+	@truncate -s 65536 $(BUILD_DIR)/$(NAME).img
+	@mkdir -p $(FILE_SYSTEM)
+	@echo "-------------------------------------"
+	@./makefilesystem.py $(FILE_SYSTEM) $(BUILD_DIR)/fs.img
+	@echo "-------------------------------------"
+	@cat $(BUILD_DIR)/fs.img >> $(BUILD_DIR)/$(NAME).img
 
 clean:
 	rm -rf $(BUILD_DIR)
 
 $(BUILD_DIR)/kernel/boot.bin: $(KERNEL_SOURCE_DIR)/boot.asm
+	@echo "Assembling boot loader: $<"
 	@mkdir -p $(dir $@)
-	nasm -f bin -o $@ $<
+	@nasm -f bin -o $@ $<
 
 $(BUILD_DIR)/kernel/%.c.o: $(KERNEL_SOURCE_DIR)/%.c
+	@echo "Compiling $<"
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c -o $@ $<
+	@$(CC) $(CFLAGS) -c -o $@ $<
 
 # interrupts
 $(BUILD_DIR)/kernel/%.int.c.o: $(KERNEL_SOURCE_DIR)/%.c
+	@echo "Compiling $< as interrupt"
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -mno-80387 -mno-sse -mno-mmx -c -o $@ $<
+	@$(CC) $(CFLAGS) -mno-80387 -mno-sse -mno-mmx -c -o $@ $<
 
 
 $(BUILD_DIR)/kernel/%.asm.o: $(KERNEL_SOURCE_DIR)/%.asm
+	@echo "Assembling $<"
 	@mkdir -p $(dir $@)
-	nasm -f elf32 -g -o $@ $<
+	@nasm -f elf32 -g -o $@ $<
 
 
