@@ -143,7 +143,7 @@ int kernel_entry(struct GDT* gdt)
     ata_read_sector(sector_offset, (uint8_t*)app);
     printf("app size: %x\napp entry: %x\n", app->size, app->entry);
 
-    int num_sectors = app->size / 512;
+    int num_sectors = (app->size + 511) / 512;
     printf("loading %d more sectors...\n", num_sectors);
     for (int i = 0; i < num_sectors; i++) {
         printf("loading sector %d\n", sector_offset + i);
