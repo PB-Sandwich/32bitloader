@@ -22,6 +22,7 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/ata.c.o \
 		$(BUILD_DIR)/kernel/interrupts/system_calls.c.o \
 		$(BUILD_DIR)/kernel/input.c.o \
+		$(BUILD_DIR)/kernel/filesystem.c.o \
 
 TARGETS_BIN := $(BUILD_DIR)/kernel/boot.bin
 TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
@@ -49,12 +50,15 @@ all: $(TARGETS)
 	@objcopy -O binary $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/kernel.bin
 	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).img
 
+	@echo "Making examples"
+	make --file ./examples/makefile all
+
 	@echo "Preparing disk image"
 	@# fill to 0xffff
 	@truncate -s 65536 $(BUILD_DIR)/$(NAME).img
 	@mkdir -p $(FILE_SYSTEM)
 	@echo "-------------------------------------"
-	@./makefilesystem.py $(FILE_SYSTEM) $(BUILD_DIR)/fs.img
+	@./makefilesystem.py $(FILE_SYSTEM) $(BUILD_DIR)/fs.img --offset $$((0x10000 / 0x200))
 	@echo "-------------------------------------"
 	@cat $(BUILD_DIR)/fs.img >> $(BUILD_DIR)/$(NAME).img
 

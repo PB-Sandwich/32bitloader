@@ -1,11 +1,11 @@
 # x86 32 Bit Loader
 
-Loads a x86 32 bit app into memory address 0x300008 (3Mb) and provides some basic syscalls.
+Loads a x86 32 bit app into memory address 0x300000 (3Mb) and provides some basic syscalls.
 
 ## Making an App
 
-The makefile has the variable APP_BIN which you set to the path of your apps binary, it should be linked for memory address 0x300008.
-It also has a variable APP_ENTRY which lets you define the offset into where it gets loaded (address 0x300008) that the entry function is.
+The makefile has the variable APP_BIN which you set to the path of your apps binary, it should be linked for memory address 0x300000.
+It also has a variable APP_ENTRY which lets you define the offset into where it gets loaded (address 0x300000) that the entry function is.
 The app will run at ring 0 (most privileged).
 
 ## Kernel Exports
@@ -100,7 +100,7 @@ offset | length | name
 0x00   | 0x01   | type = 0x01 (Directory)
 0x01   | 0x1F   | name
 0x20   | 0x04   | Entry
-...    | ...    |
+...    | ...    | Entries
 0x1FC  | 0x04   | Entry
 
 512 byte sector: File Descriptor:
@@ -111,4 +111,15 @@ offset | length | name
 0x20   | 0x04   | start sector of the file
 0x24   | 0x04   | files length in sectors
 0x28   | 0x04   | entry point (executable files only)
+...    | ...    | 0
+0x1FC  | 0x04   | link
 entry point is an offset in bytes
+
+File Descriptor Link
+offset | length | name
+-------|--------|-----
+...    | ...    | 0
+0x20   | 0x04   | start sector of the file
+0x24   | 0x04   | files length in sectors
+...    | ...    | 0
+0x1FC  | 0x04   | link

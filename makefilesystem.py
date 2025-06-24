@@ -17,9 +17,10 @@ TYPE_EXEC = 0x03
 ELF_MAGIC = b'\x7fELF'
 
 class FSBuilder:
-    def __init__(self):
-        self.sectors = [b'\x00' * SECTOR_SIZE]  # Reserve sector 0 for root
+    def __init__(self, image_offset=0):
+        self.sectors = [b'\x00' * SECTOR_SIZE]  # Reserve root
         self.path_to_sector = {}
+        self.image_offset = image_offset
 
     def pad_name(self, name):
         name_bytes = name.encode('utf-8')[:MAX_NAME_LEN]
@@ -38,7 +39,7 @@ class FSBuilder:
         descriptor = bytearray(SECTOR_SIZE)
         descriptor[0] = TYPE_EXEC if is_exec else TYPE_FILE
         descriptor[1:0x20] = self.pad_name(name)
-        struct.pack_into("<I", descriptor, 0x20, start_sector)
+        struct.pack_into("<I", descriptor, 0x20, start_sector + self.image_offset)
         struct.pack_into("<I", descriptor, 0x24, num_sectors)
         if is_exec:
             struct.pack_into("<I", descriptor, 0x28, entry_point)
@@ -51,7 +52,7 @@ class FSBuilder:
         for i, sector in enumerate(entries):
             if 0x20 + i * 4 >= SECTOR_SIZE:
                 break
-            struct.pack_into("<I", descriptor, 0x20 + i * 4, sector)
+            struct.pack_into("<I", descriptor, 0x20 + i * 4, sector + self.image_offset)
         return descriptor
 
     def extract_elf_info(self, path):
@@ -82,12 +83,13 @@ class FSBuilder:
         if is_elf:
             data = self.objcopy_to_bin(path)
             is_exec = True
+            name = os.path.splitext(name)[0] + ".bin"  # Rename from .elf to .bin
         else:
             with open(path, "rb") as f:
                 data = f.read()
             entry_point = 0
             is_exec = False
-
+    
         data = self.align_file(data)
         start_sector = len(self.sectors)
         for i in range(0, len(data), SECTOR_SIZE):
@@ -128,14 +130,15 @@ class FSBuilder:
         print(f"Filesystem image written to: {output_file}")
         print(f"Total sectors: {len(self.sectors)}")
 
+
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python3 build_fs.py <input_directory> <output_image>")
-        sys.exit(1)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("input_directory", help="Root directory to include in FS")
+    parser.add_argument("output_image", help="Output binary image file")
+    parser.add_argument("--offset", type=int, default=0, help="Sector offset to apply to all pointers")
+    args = parser.parse_args()
 
-    root_dir = sys.argv[1]
-    output = sys.argv[2]
-
-    builder = FSBuilder()
-    builder.build_image(root_dir, output)
+    builder = FSBuilder(image_offset=args.offset)
+    builder.build_image(args.input_directory, args.output_image)
 
