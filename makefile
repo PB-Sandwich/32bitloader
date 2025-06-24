@@ -20,7 +20,8 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/memutils.c.o \
 		$(BUILD_DIR)/kernel/interrupts/irq_handlers.int.c.o \
 		$(BUILD_DIR)/kernel/ata.c.o \
-		$(BUILD_DIR)/kernel/interrupts/system_calls.c.o
+		$(BUILD_DIR)/kernel/interrupts/system_calls.c.o \
+		$(BUILD_DIR)/kernel/input.c.o \
 
 TARGETS_BIN := $(BUILD_DIR)/kernel/boot.bin
 TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)

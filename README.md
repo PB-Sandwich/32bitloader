@@ -12,20 +12,30 @@ The app will run at ring 0 (most privileged).
 The app will get passed the following at esp + 8
 ```c
 void printf(const char* fmt, ...);
+
 void print_char(uint8_t chr);
 void print_string(uint8_t* str);
 void set_color(uint8_t fg, uint8_t bg);
 void newline();
 void clear();
-uint8_t get_cursor_pos(); // high order are x, low order are y
-void set_cursor_pos(uint8_t pos); // high order are x, low order are y
+void get_cursor_pos(uint8_t* x, uint8_t* y);
+void set_cursor_pos(uint8_t x, uint8_t y);
+
 void clear_key_pressed(); // clears the key pressed flag
 uint8_t key_pressed(); // returns 1 if a key is pressed
 uint8_t scancode(); // gets the last scancode
 void set_keyboard_function(void (*keyboard_function_)(uint8_t scancode));
+
+enum Keycode wait_for_keypress();
+uint8_t* get_line(); // returns the pointer to input buffer (which will get overwritten on next call)
+uint8_t keycode_to_ascii(enum Keycode kc);
+enum Keycode scancode_to_keycode(uint8_t sc);
+
 void ata_read_sector(uint32_t lba, uint8_t* buffer);
 void ata_write_sector(uint32_t lba, uint8_t* buffer);
+
 struct IDTEntry make_idt_entry(uint32_t *offset, uint16_t selector, uint8_t type_attr);
+
 void memcpy(void *dest, void *source, uint32_t size);
 ```
 
@@ -68,3 +78,37 @@ Writes sectors (one sector = 512 bytes) to the hard drive.
 `ecx` is the number of sectors to write.
 `edx` is the memory location to read from.
 
+## File System
+
+File System Descriptor Type:
+Value | type
+------|-----
+0x00  | NONE
+0x01  | Directory
+0x02  | File
+0x03  | Executable File
+
+Directory Entry:
+length | name
+-------|-----
+0x04   | sector of next descriptor
+if entry = 0, it is not present
+
+512 byte sector: Directory:
+offset | length | name
+-------|--------|-----
+0x00   | 0x01   | type = 0x01 (Directory)
+0x01   | 0x1F   | name
+0x20   | 0x04   | Entry
+...    | ...    |
+0x1FC  | 0x04   | Entry
+
+512 byte sector: File Descriptor:
+offset | length | name
+-------|--------|-----
+0x00   | 0x01   | type = 0x02 (File)
+0x01   | 0x1F   | name
+0x20   | 0x04   | start sector of the file
+0x24   | 0x04   | files length in sectors
+0x28   | 0x04   | entry point (executable files only)
+entry point is an offset in bytes

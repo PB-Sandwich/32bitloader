@@ -1,6 +1,7 @@
 #include "ata.h"
 #include "idt.h"
 #include "inboutb.h"
+#include "input.h"
 #include "interrupts/error_handlers.h"
 #include "interrupts/irq_handlers.h"
 #include "interrupts/system_calls.h"
@@ -39,12 +40,17 @@ struct {
     void* key_pressed;
     void* scancode;
     void* set_keyboard_function;
+    void* wait_for_keypress;
+    void* get_line;
+    void* keycode_to_ascii;
+    void* scancode_to_keycode;
     void* ata_read_sector;
     void* ata_write_sector;
     void* make_idt_entry;
     void* memcpy;
 } __attribute__((packed)) kernel_exports = {
     .printf = printf,
+
     .print_char = print_char,
     .print_string = print_string,
     .set_color = set_color,
@@ -52,17 +58,28 @@ struct {
     .clear = clear,
     .get_cursor_pos = get_cursor_pos,
     .set_cursor_pos = set_cursor_pos,
+
     .clear_key_pressed = clear_key_pressed,
     .key_pressed = key_pressed,
     .scancode = scancode,
     .set_keyboard_function = set_keyboard_function,
+
+    .wait_for_keypress = wait_for_keypress,
+    .get_line = get_line,
+    .keycode_to_ascii = keycode_to_ascii,
+    .scancode_to_keycode = scancode_to_keycode,
+
     .ata_read_sector = ata_read_sector,
     .ata_write_sector = ata_write_sector,
+
     .make_idt_entry = make_idt_entry,
+
     .memcpy = memcpy
 };
 
-int kernel_entry(struct GDT* gdt)
+int main();
+
+void kernel_entry(struct GDT* gdt)
 {
     // interrupt init
     printf("setting interrupt descriptor table\n");
@@ -198,9 +215,17 @@ int kernel_entry(struct GDT* gdt)
         : "r"(0x80000)
         : "esp");
 
-    entry_fn(&kernel_exports);
+    // entry_fn(&kernel_exports);
+    main();
 
     while (1)
         ;
+}
+
+int main()
+{
+    printf("keyboard test\n");
+    uint8_t* str = get_line();
+    printf("you typed: %s", str);
     return 0;
 }

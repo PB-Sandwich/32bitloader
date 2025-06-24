@@ -18,6 +18,11 @@ void print_char(uint8_t chr)
     case '\t':
         print_string((uint8_t*)"        ");
         return;
+    case '\b':
+        if (cursor_col > 0) {
+            cursor_col--;
+        }
+        return;
     }
     text_buffer[cursor_col + cursor_row * VGA_WIDTH] = chr | color << 8;
     cursor_col++;
@@ -68,12 +73,13 @@ void clear()
     }
 }
 
-uint8_t get_cursor_pos()
+void get_cursor_pos(uint8_t* x, uint8_t* y)
 {
-    return cursor_col << 4 | cursor_row;
+    *x = cursor_col;
+    *y = cursor_row;
 }
-void set_cursor_pos(uint8_t pos)
+void set_cursor_pos(uint8_t x, uint8_t y)
 {
-    cursor_row = pos & 0b1111;
-    cursor_col = pos >> 4 & 0b1111;
+    cursor_col = x;
+    cursor_row = y;
 }

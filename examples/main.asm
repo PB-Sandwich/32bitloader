@@ -28,6 +28,7 @@ start:
     push 5
     push string4
     call [eax + (4 * 0)]
+    add esp, 8
 
 .halt:
     hlt
