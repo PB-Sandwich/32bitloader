@@ -1,6 +1,9 @@
 [org 0x300008]
 [bits 32]
 start:
+    push ebp
+    mov ebp, esp
+
     mov eax, 0x01
     int 0x40
 
@@ -20,6 +23,11 @@ start:
     mov eax, 0x06
     mov ebx, key_pressed
     int 0x40
+
+    mov eax, [ebp + 8]
+    push 5
+    push string4
+    call [eax + (4 * 0)]
 
 .halt:
     hlt
@@ -49,6 +57,9 @@ string2:
     db "0", 0xA, 0
 string3:
     db "key pressed: ", 0
+
+string4:
+    db "testing printf %x" , 0xA, 0
 
 scancode_to_ascii:
     db 27,  "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", 8

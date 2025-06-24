@@ -31,7 +31,6 @@ void syscall_c(struct syscall_regs* regs)
     case 0x05:
         clear_key_pressed();
         __asm__ volatile("sti");
-        uint8_t tmp;
         while (key_pressed() == 0)
             ;
         __asm__ volatile("cli");

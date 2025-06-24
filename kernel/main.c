@@ -8,6 +8,7 @@
 #include "pic.h"
 #include "print.h"
 #include "tss.h"
+#include "tty.h"
 #include <stdint.h>
 
 struct GDT {
@@ -23,6 +24,42 @@ struct GDT_descriptor {
 struct App {
     uint32_t size;
     uint32_t entry;
+};
+
+struct {
+    void* printf;
+    void* print_char;
+    void* print_string;
+    void* set_color;
+    void* newline;
+    void* clear;
+    void* get_cursor_pos;
+    void* set_cursor_pos;
+    void* clear_key_pressed;
+    void* key_pressed;
+    void* scancode;
+    void* set_keyboard_function;
+    void* ata_read_sector;
+    void* ata_write_sector;
+    void* make_idt_entry;
+    void* memcpy;
+} __attribute__((packed)) kernel_exports = {
+    .printf = printf,
+    .print_char = print_char,
+    .print_string = print_string,
+    .set_color = set_color,
+    .newline = newline,
+    .clear = clear,
+    .get_cursor_pos = get_cursor_pos,
+    .set_cursor_pos = set_cursor_pos,
+    .clear_key_pressed = clear_key_pressed,
+    .key_pressed = key_pressed,
+    .scancode = scancode,
+    .set_keyboard_function = set_keyboard_function,
+    .ata_read_sector = ata_read_sector,
+    .ata_write_sector = ata_write_sector,
+    .make_idt_entry = make_idt_entry,
+    .memcpy = memcpy
 };
 
 int kernel_entry(struct GDT* gdt)
@@ -152,15 +189,7 @@ int kernel_entry(struct GDT* gdt)
 
     // execute app
     printf("executing app\n");
-    void (*entry_fn)(void) = (void (*)(void))(0x300000 + app->entry + sizeof(struct App));
-
-    struct {
-        uint32_t offset;
-        uint16_t selector;
-    } __attribute__((packed)) far_jump_target = {
-        .offset = (uint32_t)entry_fn, // target to jump to
-        .selector = 0x08, // code segment to load
-    };
+    void (*entry_fn)(void*) = (void (*)(void*))(0x300000 + app->entry + sizeof(struct App));
 
     // set stack
     __asm__ volatile(
@@ -169,11 +198,7 @@ int kernel_entry(struct GDT* gdt)
         : "r"(0x80000)
         : "esp");
 
-    // jump to app
-    __asm__ volatile(
-        "ljmp *%0"
-        :
-        : "m"(far_jump_target));
+    entry_fn(&kernel_exports);
 
     while (1)
         ;
