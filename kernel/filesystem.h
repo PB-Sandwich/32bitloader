@@ -59,7 +59,11 @@ typedef union {
 // buffer must be at least 512 bytes
 void fs_set_buffer(uint32_t* buffer);
 void fs_set_root(uint32_t sector);
+
 File_t read_file_descriptor(char* path);
 File_t read_file_descriptor_sector(uint32_t sector);
+
 void get_directory_list(DirectoryEntry_t* list, Directory_t dir);
 void read_file(uint8_t* buffer, FileDescriptor_t file_descriptor);
+
+File_t create_file_descriptor(char* path, File_t file);

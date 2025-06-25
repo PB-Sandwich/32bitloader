@@ -127,3 +127,27 @@ void read_file(uint8_t* buffer, FileDescriptor_t file)
         ata_read_sector(sector + i, buffer + (512 * i));
     }
 }
+
+File_t create_file_descriptor(char* path, File_t file)
+{
+    int path_len = strlen(path);
+    for (int i = path_len; i > 0; i--) {
+        if (path[i] == '/') {
+            path[i] = '\0';
+            break;
+        }
+    }
+
+    File_t dir_u = read_file_descriptor("path");
+    if (dir_u.directory.type == ERROR) {
+        return dir_u;
+    }
+    if (dir_u.directory.type != DIRECTORY) {
+        make_error("Not a directory", NOT_DIRECTORY, &dir_u);
+        return dir_u;
+    }
+
+    Directory_t dir = dir_u.directory;
+
+    return file;
+}
