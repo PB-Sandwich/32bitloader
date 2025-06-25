@@ -1,4 +1,4 @@
-[org 0x300008]
+
 [bits 32]
 start:
     push ebp
