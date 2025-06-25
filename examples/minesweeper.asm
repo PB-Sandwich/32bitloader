@@ -32,6 +32,9 @@ input:
     mov eax, 0x5
     int 0x40
     
+    cmp bl, keyboard.exit
+    jne .check_up
+    ret
     .check_up:
         cmp bl, keyboard.up
         jne .check_down
@@ -74,6 +77,10 @@ input:
 .skip_controls:
     mov eax, 0x5
     int 0x40
+    cmp bl, keyboard.exit
+    jne .check_restart
+    ret
+    .check_restart:
     cmp bl, keyboard.restart
     jne .skip_controls
 
@@ -543,7 +550,8 @@ keyboard:
     .right equ 0x4d
     .reveal equ 0x1c
     .mark equ 0x0f
-    .restart equ 0x01
+    .restart equ 0x39
+    .exit equ 0x1
 
 colors:
     .black equ 0
@@ -564,11 +572,10 @@ colors:
 
 
 game_over_text:
-    db "You lost!", 0
+    db "You lost! ESC: Exit. Space: Restart", 0
 
 game_victory_text:
-    db "You win!", 0
+    db "You win! ESC: Exit. Space: Restart", 0
 
 game_start_text:
-    ;db "There are ", ((minefield.bomb_count & 0xf0) >> 4) + '0',  (minefield.bomb_count & 0x0f) + '0', " bombs", 0
-    db "There are ", minefield.bomb_count / 100  + '0', (minefield.bomb_count / 10) % 10  + '0', minefield.bomb_count % 10 + '0',  " bombs", 0
+    db "There are ", minefield.bomb_count / 100  + '0', (minefield.bomb_count / 10) % 10  + '0', minefield.bomb_count % 10 + '0',  " bombs. Arrow keys: move. Enter: reveal. TAB: mark. ESC: exit"
