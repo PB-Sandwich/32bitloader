@@ -15,15 +15,18 @@ NUMBER_OF_SECTORS: db 0
     mov bp, 0xf000 ; setting stack
     mov sp, bp
 
-
-mov ah, 0x42
-mov dl, [BOOT_DISK]
-mov si, DAP
-int 0x13
+    mov ah, 0x42
+    mov dl, [BOOT_DISK]
+    mov si, DAP
+    int 0x13
 
     ; set vidoe mode to 80x25 text mode
     mov ah, 0x0
     mov al, 0x3
+    int 0x10
+
+    mov ah, 0x01
+    mov ch, 0x3F
     int 0x10
 
     jmp enter_protected_mode

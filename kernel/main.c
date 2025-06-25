@@ -273,12 +273,6 @@ void print_info(DirectoryEntry_t* entry, char* intro_msg)
     printf(intro_msg);
 }
 
-void testfn()
-{
-    printf("test");
-    return;
-}
-
 int main()
 {
     clear();
@@ -313,7 +307,6 @@ int main()
     display_file_list(list, 0);
 
     uint8_t selection = 0;
-    uint8_t last_kc = 0;
     while (1) {
         enum Keycode kc = wait_for_keypress();
         switch (kc) {

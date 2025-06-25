@@ -9,7 +9,7 @@ uint8_t buffer[32] = { '\0' };
 enum Keycode wait_for_keypress()
 {
     clear_key_pressed();
-    while (!key_pressed() || !(scancode() & 0b10000000))
+    while (!key_pressed() || ((scancode() & 0b10000000) > 0))
         ;
     return scancode_to_keycode(scancode());
 }
@@ -36,7 +36,7 @@ uint8_t* get_line()
             continue;
         }
 
-        if (ascii  == '\n') {
+        if (ascii == '\n') {
             buffer[i] = '\0';
             break;
         }

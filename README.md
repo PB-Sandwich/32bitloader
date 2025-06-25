@@ -4,9 +4,7 @@ Loads a x86 32 bit app into memory address 0x300000 (3Mb) and provides some basi
 
 ## Making an App
 
-The makefile has the variable APP_BIN which you set to the path of your apps binary, it should be linked for memory address 0x300000.
-It also has a variable APP_ENTRY which lets you define the offset into where it gets loaded (address 0x300000) that the entry function is.
-The app will run at ring 0 (most privileged).
+The app should be put into the ./build/root directory as a statically linked elf file for 0x300000.
 
 ## Kernel Exports
 The app will get passed the following at esp + 8
