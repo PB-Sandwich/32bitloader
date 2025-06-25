@@ -36,8 +36,6 @@ QEMU_FLAGS := -m 512M
 
 .PHONY: all clean run
 
-example:
-	make --file examples/makefile all
 
 run: all
 	qemu-system-x86_64 -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS)
@@ -50,8 +48,8 @@ all: $(TARGETS)
 	@objcopy -O binary $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/kernel.bin
 	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).img
 
-	@echo "Making examples"
-	make --file ./examples/makefile all
+	@echo "Building default apps"
+	make --file apps/makefile all
 
 	@echo "Preparing disk image"
 	@# fill to 0xffff
