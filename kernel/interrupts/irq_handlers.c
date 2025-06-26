@@ -2,6 +2,7 @@
 #include <inboutb.h>
 #include <pic.h>
 #include <print.h>
+#include <stdint.h>
 
 // void PIC_sendEOI(uint8_t irq)
 // {
@@ -13,6 +14,7 @@
 
 volatile uint8_t key_pressed_var = 0;
 volatile uint8_t scancode_var = 0;
+volatile uint8_t shift_var = 0;
 volatile void (*keyboard_function)(uint8_t scancode) = 0;
 
 void clear_key_pressed()
@@ -27,6 +29,10 @@ uint8_t scancode()
 {
     return scancode_var;
 }
+uint8_t is_shifted()
+{
+    return shift_var;
+}
 void set_keyboard_function(void (*keyboard_function_)(uint8_t scancode))
 {
     keyboard_function = (volatile void*)keyboard_function_;
@@ -36,6 +42,13 @@ void set_keyboard_function(void (*keyboard_function_)(uint8_t scancode))
 void irq1_keyboard(struct interrupt_frame* frame)
 {
     scancode_var = inb(0x60);
+
+    if (scancode_var == 0x2a) {
+        shift_var = 1;
+    } else if (scancode_var == 0xaa) {
+        shift_var = 0;
+    }
+
     key_pressed_var = 1;
     if (keyboard_function != 0) {
         keyboard_function(scancode_var);
