@@ -5,6 +5,8 @@ FILE_SYSTEM = $(BUILD_DIR)/root
 
 APP_SIZE=$$(stat --format="%s" $(APP_BIN))
 
+QEMU := qemu-system-x86_64
+
 NAME := 32bitloader
 
 SOURCE_DIR := .
@@ -37,11 +39,13 @@ QEMU_FLAGS := -m 512M
 
 .PHONY: all clean run
 
-example:
-	make --file examples/makefile all
 
 run: all
-	qemu-system-x86_64 -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS)
+	$(QEMU) -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS)
+
+debug: all
+	$(QEMU) -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS) -s -S
+
 
 all: $(TARGETS)
 	@echo "Linking"
@@ -51,8 +55,8 @@ all: $(TARGETS)
 	@objcopy -O binary $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/kernel.bin
 	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).img
 
-	@echo "Making examples"
-	make --file ./examples/makefile all
+	@echo "Building default apps"
+	make --file apps/makefile all
 
 	@echo "Preparing disk image"
 	@# fill to 0xffff

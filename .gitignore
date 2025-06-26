@@ -1,4 +1,6 @@
-
+# various editors
+.vscode/
+# build files
 build/
 .clangd
 compile_commands.json
