@@ -262,6 +262,11 @@ bool isalphanum(int c)
     return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
 }
 
+bool isvalidinput(int c)
+{
+    return c >= '!' && c <= '~';
+}
+
 bool isbf(int c)
 {
     const char valid_bf[] = "[]+-,.<>";
@@ -545,7 +550,7 @@ int app_main(struct KernelExports *kernel_exports)
             if (current_mode == EEM_Editing)
             {
                 uint8_t ch = kernel_exports->keycode_to_ascii(last_key_keycode);
-                if ((isalphanum(ch) || isbf(ch) || ch == ' ') && code_text_offset < sizeof(code_buffer))
+                if ((isalphanum(ch) || isvalidinput(ch) || ch == ' ') && code_text_offset < sizeof(code_buffer))
                 {
                     code_buffer[code_text_offset] = ch;
                     text_buffer[text_display_offset] = (((EC_Black << 4) | EC_White) << 8) | ch;
