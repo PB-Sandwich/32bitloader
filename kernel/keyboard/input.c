@@ -1,7 +1,7 @@
 #include "input.h"
-#include "interrupts/irq_handlers.h"
-#include "print.h"
-#include "tty.h"
+#include <interrupts/irq_handlers.h>
+#include <print.h>
+#include <terminal/tty.h>
 #include <stdint.h>
 
 uint8_t buffer[32] = { '\0' };

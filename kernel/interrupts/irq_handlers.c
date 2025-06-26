@@ -1,7 +1,7 @@
 #include "irq_handlers.h"
-#include "../inboutb.h"
-#include "../pic.h"
-#include "../print.h"
+#include <inboutb.h>
+#include <pic.h>
+#include <print.h>
 
 // void PIC_sendEOI(uint8_t irq)
 // {
