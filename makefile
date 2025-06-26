@@ -5,7 +5,8 @@ FILE_SYSTEM = $(BUILD_DIR)/root
 
 APP_SIZE=$$(stat --format="%s" $(APP_BIN))
 
-QEMU := qemu-system-x86_64
+QEMU := qemu-system-i386
+QEMU_FLAGS := -m 512M
 
 NAME := 32bitloader
 
@@ -35,7 +36,6 @@ CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I
 LD := ld
 LDFLAGS := -m elf_i386 -nostdlib -T linker.ld 
 
-QEMU_FLAGS := -m 512M
 
 .PHONY: all clean run
 

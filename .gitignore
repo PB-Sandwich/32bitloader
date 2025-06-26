@@ -1,7 +1,13 @@
 # various editors
 .vscode/
-# build files
-build/
+
+# lsp
 .clangd
 compile_commands.json
+
+# build files
+build/
+
+# general
 .cache
+*.plist
