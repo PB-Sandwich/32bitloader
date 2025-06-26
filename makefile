@@ -13,23 +13,23 @@ BUILD_DIR := build
 
 TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/print.c.o \
-		$(BUILD_DIR)/kernel/tty.c.o \
 		$(BUILD_DIR)/kernel/idt.c.o \
-		$(BUILD_DIR)/kernel/interrupts/error_handlers.int.c.o \
 		$(BUILD_DIR)/kernel/inboutb.c.o \
 		$(BUILD_DIR)/kernel/memutils.c.o \
-		$(BUILD_DIR)/kernel/interrupts/irq_handlers.int.c.o \
-		$(BUILD_DIR)/kernel/ata.c.o \
-		$(BUILD_DIR)/kernel/interrupts/system_calls.c.o \
-		$(BUILD_DIR)/kernel/input.c.o \
-		$(BUILD_DIR)/kernel/filesystem.c.o \
 		$(BUILD_DIR)/kernel/heap.c.o \
+		$(BUILD_DIR)/kernel/terminal/tty.c.o \
+		$(BUILD_DIR)/kernel/harddrive/ata.c.o \
+		$(BUILD_DIR)/kernel/keyboard/input.c.o \
+		$(BUILD_DIR)/kernel/filesystem/filesystem.c.o \
+		$(BUILD_DIR)/kernel/interrupts/error_handlers.int.c.o \
+		$(BUILD_DIR)/kernel/interrupts/irq_handlers.int.c.o \
+		$(BUILD_DIR)/kernel/interrupts/system_calls.c.o \
 
 TARGETS_BIN := $(BUILD_DIR)/kernel/boot.bin
 TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
 
 CC := clang
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector
+CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(KERNEL_SOURCE_DIR)
 LD := ld
 LDFLAGS := -m elf_i386 -nostdlib -T linker.ld 
 

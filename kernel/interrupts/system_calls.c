@@ -1,8 +1,8 @@
 #include "system_calls.h"
-#include "../ata.h"
-#include "../tty.h"
 #include "irq_handlers.h"
+#include <harddrive/ata.h>
 #include <stdint.h>
+#include <terminal/tty.h>
 
 struct syscall_regs {
     uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;

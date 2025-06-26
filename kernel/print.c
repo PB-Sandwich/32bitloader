@@ -1,6 +1,6 @@
 #include <stdarg.h>
 #include <stdint.h>
-#include "tty.h"
+#include <terminal/tty.h>
 
 void print_int(int num)
 {

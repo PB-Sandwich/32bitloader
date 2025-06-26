@@ -1,6 +1,6 @@
 #include "error_handlers.h"
-#include "../print.h"
-#include "../tty.h"
+#include <print.h>
+#include <terminal/tty.h>
 
 void divide_by_zero(struct interrupt_frame* frame)
 {
