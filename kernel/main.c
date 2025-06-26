@@ -276,7 +276,6 @@ void print_info(DirectoryEntry_t* entry, char* intro_msg)
 
 int main()
 {
-    get_line();
     init_heap((uint8_t*)0x210000, 0x10000);
 
     clear();
