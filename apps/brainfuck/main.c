@@ -262,6 +262,11 @@ bool isalphanum(int c)
     return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
 }
 
+bool isvalidinput(int c)
+{
+    return c >= '!' && c <= '~';
+}
+
 bool isbf(int c)
 {
     const char valid_bf[] = "[]+-,.<>";
@@ -368,6 +373,7 @@ enum EditorMode
     EEM_Editing,
     EEM_Command,
     EEM_Running,
+    EEM_ViewingHelp,
     EEM_Exit
 };
 
@@ -386,6 +392,33 @@ void reset_display(const char *code, struct KernelExports *kernel_exports)
     kernel_exports->set_cursor_pos(0, 0);
     kernel_exports->clear();
     kernel_exports->printf(code);
+}
+
+void display_help(struct KernelExports *kernel_exports)
+{
+    kernel_exports->clear();
+    const char help_text[] =
+        "  Simple brainfuck interpreter\n\
+            by Sofia \"MetalPizzaCat\"\n\
+        Modes:\n\
+        * Editor - accessed by pressing TAB. - Allows user to edit code\n\
+        * Commands - accessed by pressing ESC. - Allows user to enter commands\n\
+        Commands: \n\
+        * run   | r - run current code\n\
+        * help  | h - display help\n\
+        * new   | n - clear inputted code\n\
+        * quit  | q - exit\n\
+        Brainfuck commands: \n\
+        * '+' - increase current cell value by one\n\
+        * '-' - decrease current cell value by one\n\
+        * '>' - move cell pointer right\n\
+        * '<' - move cell pointer left\n\
+        * '[' - if current cell is 0, move to matching ']'\n\
+        * ']' - if current cell is NOT 0, move to matching '['\n\
+        There are 300 cells each storing value in range of 0 to 255 \n\
+        Press ESC - to exit help\n\
+        ";
+    kernel_exports->printf(help_text);
 }
 
 int app_main(struct KernelExports *kernel_exports)
@@ -410,12 +443,22 @@ int app_main(struct KernelExports *kernel_exports)
     uint32_t text_display_offset = 0;
     uint32_t command_display_offset = 0;
 
-    enum EditorMode current_mode = EEM_Editing;
-
+    enum EditorMode current_mode = EEM_Command;
+    command_text_buffer[-1] = (((EC_Black << 4) | EC_Green) << 8) | ':';
     do
     {
         kernel_exports->wait_for_keypress();
         enum Keycode last_key_keycode = kernel_exports->scancode_to_keycode(kernel_exports->scancode());
+        if (current_mode == EEM_ViewingHelp)
+        {
+            if (last_key_keycode == EKC_ESC)
+            {
+                current_mode = EEM_Command;
+                reset_display(code_buffer, kernel_exports);
+                command_text_buffer[-1] = (((EC_Black << 4) | EC_Green) << 8) | ':';
+            }
+            continue;
+        }
         switch (last_key_keycode)
         {
         case EKC_ENTER:
@@ -435,6 +478,12 @@ int app_main(struct KernelExports *kernel_exports)
                     command_display_offset = 0;
                     code_text_offset = 0;
                     command_text_offset = 0;
+                    current_mode = EEM_Editing;
+                }
+                else if (strncmp(command_buffer, "help", 50) == 0 || strncmp(command_buffer, "h", 50) == 0)
+                {
+                    current_mode = EEM_ViewingHelp;
+                    display_help(kernel_exports);
                 }
                 else if (strncmp(command_buffer, "run", 50) == 0 || strncmp(command_buffer, "r", 50) == 0)
                 {
@@ -501,7 +550,7 @@ int app_main(struct KernelExports *kernel_exports)
             if (current_mode == EEM_Editing)
             {
                 uint8_t ch = kernel_exports->keycode_to_ascii(last_key_keycode);
-                if ((isalphanum(ch) || isbf(ch) || ch == ' ') && code_text_offset < sizeof(code_buffer))
+                if ((isalphanum(ch) || isvalidinput(ch) || ch == ' ') && code_text_offset < sizeof(code_buffer))
                 {
                     code_buffer[code_text_offset] = ch;
                     text_buffer[text_display_offset] = (((EC_Black << 4) | EC_White) << 8) | ch;
