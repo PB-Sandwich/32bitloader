@@ -1,2 +1,4 @@
-
+# various editors
+.vscode/
+# build files
 build/

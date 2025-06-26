@@ -5,6 +5,8 @@ FILE_SYSTEM = $(BUILD_DIR)/root
 
 APP_SIZE=$$(stat --format="%s" $(APP_BIN))
 
+QEMU := qemu-system-x86_64
+
 NAME := 32bitloader
 
 SOURCE_DIR := .
@@ -38,7 +40,11 @@ QEMU_FLAGS := -m 512M
 
 
 run: all
-	qemu-system-x86_64 -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS)
+	$(QEMU) -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS)
+
+debug: all
+	$(QEMU) -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS) -s -S
+
 
 all: $(TARGETS)
 	@echo "Linking"
