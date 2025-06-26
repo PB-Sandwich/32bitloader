@@ -1,13 +1,13 @@
 #include <harddrive/ata.h>
 #include <filesystem/filesystem.h>
-#include <heap.h>
+#include <stdlib.h>
 #include <idt.h>
 #include <inboutb.h>
 #include <keyboard/input.h>
 #include <interrupts/error_handlers.h>
 #include <interrupts/irq_handlers.h>
 #include <interrupts/system_calls.h>
-#include <memutils.h>
+#include <string.h>
 #include <pic.h>
 #include <print.h>
 #include <tss.h>

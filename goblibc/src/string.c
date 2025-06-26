@@ -1,5 +1,5 @@
 
-#include "memutils.h"
+#include <string.h>
 #include <stdint.h>
 
 void* memcpy(void* dest, void* source, uint32_t size)
@@ -40,15 +40,39 @@ char* strcpy(char* str_dest, char* str_source)
     return memcpy(str_dest, str_source, len);
 }
 
-int strcmp(char* str1, char* str2)
+int strcmp(const char *p1, const char *p2)
 {
-    int len1 = strlen(str1);
-    int len2 = strlen(str2);
-    int len = len1;
-    if (len2 < len1) {
-        len = len2;
-    }
-    return memcmp(str1, str2, len);
+    const unsigned char *s1 = (const unsigned char *)p1;
+    const unsigned char *s2 = (const unsigned char *)p2;
+    unsigned char c1, c2;
+
+    do
+    {
+        c1 = (unsigned char)*s1++;
+        c2 = (unsigned char)*s2++;
+        if (c1 == '\0')
+            return c1 - c2;
+    } while (c1 == c2);
+
+    return c1 - c2;
+}
+
+int strncmp(const char *p1, const char *p2, int len)
+{
+    const unsigned char *s1 = (const unsigned char *)p1;
+    const unsigned char *s2 = (const unsigned char *)p2;
+    unsigned char c1, c2;
+    int counter = 0;
+    do
+    {
+        c1 = (unsigned char)*s1++;
+        c2 = (unsigned char)*s2++;
+        if (c1 == '\0')
+            return c1 - c2;
+        counter++;
+    } while (c1 == c2 && counter < len);
+
+    return c1 - c2;
 }
 
 char* strstr(char* str, char* substr)

@@ -1,6 +1,6 @@
-#include "heap.h"
 #include <stdint.h>
 #include <string.h>
+#include <stdlib.h>
 
 uint8_t* heap = NULL;
 uint32_t heap_size = 0;

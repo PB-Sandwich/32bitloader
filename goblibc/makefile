@@ -1,0 +1,31 @@
+.PHONY: all
+
+INCLUDE_DIR := goblibc/include
+CC := clang
+CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(INCLUDE_DIR)
+BUILD_DIR := build/goblibc
+SOURCE_DIR := goblibc/src
+
+LIB_NAME := libgoblibc.a
+
+LIB_PATH := $(BUILD_DIR)/$(LIB_NAME)
+
+TARGETS := $(BUILD_DIR)/string.c.o\
+			$(BUILD_DIR)/stdlib.c.o
+
+ARCHIVER := ar
+ARCHIVER_FLAGS := rcs
+
+all: $(TARGETS)
+	@echo "Building c lib"
+	@mkdir -p $(BUILD_DIR)
+	$(ARCHIVER) $(ARCHIVER_FLAGS) $(LIB_PATH) $(TARGETS)
+
+$(BUILD_DIR)/%.c.o: $(SOURCE_DIR)/%.c
+	@echo "Compiling $<"
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+
+
+

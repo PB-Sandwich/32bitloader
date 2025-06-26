@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <endian.h>
+#include <string.h>
 
 enum Keycode
 {
@@ -161,101 +162,6 @@ struct KernelExports
 
     void (*memcpy)(void *dest, void *source, uint32_t size);
 };
-
-/**
- * @brief Fill a contigious block of memory with a specific value
- *
- * Quick and dirty reimplementation of clib function
- *
- * @param str Pointer to the the block of memory
- * @param c Value
- * @param len
- * @return void* Pointer to the memory area
- */
-void *memset(void *str, int c, uint32_t len)
-{
-    for (uint32_t i = 0; i < len; i++)
-    {
-        ((uint8_t *)str)[i] = c;
-    }
-    return str;
-}
-
-void *memcpy(void *dest, void *source, uint32_t size)
-{
-    for (uint32_t i = 0; i < size; i++)
-    {
-        ((uint8_t *)dest)[i] = ((uint8_t *)source)[i];
-    }
-    return dest;
-}
-
-int strlen(char *str)
-{
-    int i = 0;
-    for (; str[i] != '\0'; i++)
-        ;
-    return i;
-}
-
-int memcmp(void *buf1, void *buf2, uint32_t size)
-{
-    int sum = 0;
-    uint8_t *u8buf1 = buf1;
-    uint8_t *u8buf2 = buf2;
-    for (int i = 0; i < size; i++)
-    {
-        sum += u8buf1[i] - u8buf2[i];
-    }
-    return sum;
-}
-
-char *strcpy(char *str_dest, char *str_source)
-{
-    int len1 = strlen(str_dest);
-    int len2 = strlen(str_source);
-    int len = len1;
-    if (len2 < len1)
-    {
-        len = len2;
-    }
-    return memcpy(str_dest, str_source, len);
-}
-
-int strcmp(const char *p1, const char *p2)
-{
-    const unsigned char *s1 = (const unsigned char *)p1;
-    const unsigned char *s2 = (const unsigned char *)p2;
-    unsigned char c1, c2;
-
-    do
-    {
-        c1 = (unsigned char)*s1++;
-        c2 = (unsigned char)*s2++;
-        if (c1 == '\0')
-            return c1 - c2;
-    } while (c1 == c2);
-
-    return c1 - c2;
-}
-
-int strncmp(const char *p1, const char *p2, int len)
-{
-    const unsigned char *s1 = (const unsigned char *)p1;
-    const unsigned char *s2 = (const unsigned char *)p2;
-    unsigned char c1, c2;
-    int counter = 0;
-    do
-    {
-        c1 = (unsigned char)*s1++;
-        c2 = (unsigned char)*s2++;
-        if (c1 == '\0')
-            return c1 - c2;
-        counter++;
-    } while (c1 == c2 && counter < len);
-
-    return c1 - c2;
-}
 
 bool isalphanum(int c)
 {

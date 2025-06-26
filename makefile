@@ -18,8 +18,6 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/print.c.o \
 		$(BUILD_DIR)/kernel/idt.c.o \
 		$(BUILD_DIR)/kernel/inboutb.c.o \
-		$(BUILD_DIR)/kernel/memutils.c.o \
-		$(BUILD_DIR)/kernel/heap.c.o \
 		$(BUILD_DIR)/kernel/terminal/tty.c.o \
 		$(BUILD_DIR)/kernel/harddrive/ata.c.o \
 		$(BUILD_DIR)/kernel/keyboard/input.c.o \
@@ -31,13 +29,17 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 TARGETS_BIN := $(BUILD_DIR)/kernel/boot.bin
 TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
 
+LIBC_PATH := ./build/goblibc
+LIBC_NAME := goblibc
+LIBC_INCLUDE_DIR := goblibc/include
+
 CC := clang
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(KERNEL_SOURCE_DIR)
+CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(KERNEL_SOURCE_DIR) -I $(LIBC_INCLUDE_DIR)
 LD := ld
 LDFLAGS := -m elf_i386 -nostdlib -T linker.ld 
 
 
-.PHONY: all clean run
+.PHONY: all clean run libc
 
 
 run: all
@@ -46,10 +48,13 @@ run: all
 debug: all
 	$(QEMU) -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS) -s -S
 
+libc:
+	@echo "Make lib c"
+	make --file goblibc/makefile all
 
-all: $(TARGETS)
+all: libc $(TARGETS) 
 	@echo "Linking"
-	@$(LD) $(LDFLAGS) -o $(BUILD_DIR)/kernel.elf $(TARGETS_ELF)
+	@$(LD) $(LDFLAGS) -o $(BUILD_DIR)/kernel.elf $(TARGETS_ELF) -L$(LIBC_PATH) -l$(LIBC_NAME)
 
 	@echo "Making raw binary"
 	@objcopy -O binary $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/kernel.bin
