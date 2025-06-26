@@ -64,3 +64,10 @@ char* strstr(char* str, char* substr)
     }
     return ret;
 }
+
+void* memset(void* buf, int n, uint32_t size) {
+    for (uint8_t* i = buf; i < (buf + size); i++) {
+        *i = n;
+    }
+    return buf;
+}

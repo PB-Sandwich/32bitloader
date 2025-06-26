@@ -7,7 +7,7 @@ TEMP_KERNEL_LOCATION equ 0x7f00
 BOOT_DISK: db 0
 NUMBER_OF_SECTORS: db 0
     mov [BOOT_DISK], dl
-    mov [NUMBER_OF_SECTORS], byte 50
+    mov [NUMBER_OF_SECTORS], byte 60
 
     mov ax, 0
     mov es, ax ; extra segment

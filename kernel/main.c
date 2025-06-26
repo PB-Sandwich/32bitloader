@@ -1,5 +1,6 @@
 #include "ata.h"
 #include "filesystem.h"
+#include "heap.h"
 #include "idt.h"
 #include "inboutb.h"
 #include "input.h"
@@ -189,7 +190,7 @@ void kernel_entry(struct GDT* gdt)
     __asm__ volatile(
         "mov %0, %%esp\n\t"
         :
-        : "r"(0x80000)
+        : "r"(0x90000)
         : "esp");
 
     main();
@@ -223,7 +224,7 @@ void display_file_list(DirectoryEntry_t* list, uint8_t selection)
     }
 }
 
-int launch_app(DirectoryEntry_t *entry, char* intro_msg)
+int launch_app(DirectoryEntry_t* entry, char* intro_msg)
 {
     File_t file = read_file_descriptor_sector(entry->sector);
     read_file((uint32_t*)0x300000, file.file_descriptor);
@@ -275,9 +276,12 @@ void print_info(DirectoryEntry_t* entry, char* intro_msg)
 
 int main()
 {
+    init_heap((uint8_t*)0x210000, 0x10000);
+
     clear();
-    fs_set_buffer((uint32_t*)0x210000);
-    fs_set_root(0x10000 / 0x200);
+    filesystem_init(0x10000 / 0x200, (uint32_t*)0x210000);
+    FileDescriptor_t file_;
+    file_.type = FILE;
 
     char* intro_msg = "Welcome!\nWhat app would you like to launch?\nj for down, k for up, enter to launch, i for info\nApp list:\n";
     printf(intro_msg);

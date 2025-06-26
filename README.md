@@ -78,6 +78,13 @@ Writes sectors (one sector = 512 bytes) to the hard drive.
 
 ## File System
 
+File System Data Struct:
+offset | length | name
+-------|--------|-----
+0x00   | 0x04   | root descriptor
+0x04   | 0x04   | fs_size 
+fs_size is the current size the file system takes on disk
+
 File System Descriptor Type:
 Value | type
 ------|-----
@@ -99,7 +106,7 @@ offset | length | name
 0x01   | 0x1F   | name
 0x20   | 0x04   | Entry
 ...    | ...    | Entries
-0x1FC  | 0x04   | Entry
+0x1FC  | 0x04   | link
 
 512 byte sector: File Descriptor:
 offset | length | name
@@ -109,9 +116,19 @@ offset | length | name
 0x20   | 0x04   | start sector of the file
 0x24   | 0x04   | files length in sectors
 0x28   | 0x04   | entry point (executable files only)
+0x2c   | 0x04   | sector (the location of this)
 ...    | ...    | 0
 0x1FC  | 0x04   | link
 entry point is an offset in bytes
+
+Directory Descriptor Link
+offset | length | name
+-------|--------|-----
+...    | ...    | 0
+0x20   | 0x04   | start sector of the file
+0x24   | 0x04   | files length in sectors
+...    | ...    | 0
+0x1FC  | 0x04   | link
 
 File Descriptor Link
 offset | length | name
