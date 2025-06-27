@@ -1,9 +1,9 @@
 PROJECT_NAME := brainfuck
 .PHONY: all
 
-LIBC_PATH := ./build/goblibc
+LIBC_PATH := ./build/lib/goblibc
 LIBC_NAME := goblibc
-LIBC_INCLUDE_DIR := goblibc/include
+LIBC_INCLUDE_DIR := lib/goblibc/include
 
 CC := clang
 CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(LIBC_INCLUDE_DIR)

@@ -1,5 +1,5 @@
 #include "filesystem.h"
-#include <string.h>
+#include "memutils.h"
 #include "print.h"
 #include <stdint.h>
 #include <harddrive/ata.h>
