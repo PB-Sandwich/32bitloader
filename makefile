@@ -31,6 +31,7 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 TARGETS_BIN := $(BUILD_DIR)/kernel/boot.bin
 TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
 
+
 CC := clang
 CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(KERNEL_SOURCE_DIR)
 LD := ld
@@ -56,6 +57,9 @@ all: $(TARGETS) tools
 	@echo "Making raw binary"
 	@objcopy -O binary $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/kernel.bin
 	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).img
+
+	@echo "Building standard c library"
+	make --file lib/goblibc/makefile all
 
 	@echo "Building default apps"
 	make --file apps/makefile all
