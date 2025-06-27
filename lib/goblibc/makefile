@@ -11,7 +11,8 @@ LIB_NAME := libgoblibc.a
 LIB_PATH := $(BUILD_DIR)/$(LIB_NAME)
 
 TARGETS := $(BUILD_DIR)/string.c.o\
-			$(BUILD_DIR)/stdlib.c.o
+			$(BUILD_DIR)/stdlib.c.o\
+			$(BUILD_DIR)/app.c.o
 
 ARCHIVER := ar
 ARCHIVER_FLAGS := rcs
