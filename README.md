@@ -77,6 +77,10 @@ Writes sectors (one sector = 512 bytes) to the hard drive.
 `edx` is the memory location to read from.
 
 ## File System
+B32FS
+Basic 32 bit File system
+
+All strings in the file system are ascii encoded and null-terminated.
 
 File System Data Struct:
 offset | length | name
@@ -84,6 +88,7 @@ offset | length | name
 0x00   | 0x04   | root descriptor
 0x04   | 0x04   | fs_size 
 fs_size is the current size the file system takes on disk
+should be in the first sector of the filesystem
 
 File System Descriptor Type:
 Value | type
@@ -91,7 +96,7 @@ Value | type
 0x00  | NONE
 0x01  | Directory
 0x02  | File
-0x03  | Executable File
+0x03  | Block Device
 
 Directory Entry:
 length | name
@@ -99,42 +104,48 @@ length | name
 0x04   | sector of next descriptor
 if entry = 0, it is not present
 
-512 byte sector: Directory:
-offset | length | name
--------|--------|-----
-0x00   | 0x01   | type = 0x01 (Directory)
-0x01   | 0x1F   | name
-0x20   | 0x04   | Entry
-...    | ...    | Entries
-0x1FC  | 0x04   | link
-
 512 byte sector: File Descriptor:
 offset | length | name
 -------|--------|-----
-0x00   | 0x01   | type = 0x02 (File)
-0x01   | 0x1F   | name
-0x20   | 0x04   | start sector of the file
-0x24   | 0x04   | files length in sectors
-0x28   | 0x04   | entry point (executable files only)
-0x2c   | 0x04   | sector (the location of this)
+0x00   | 0x01   | type
+0x01   | 0x04   | string sector
+0x05   | 0x04   | name offset
+0x09   | 0x04   | path offset
+0x0d   | 0x04   | last accessed by path offset
+0x11   | 0x04   | last modified by path offset
+0x15   | 0x04   | attributes
+0x19   | 0x04   | file size (in sectors)
+0x1d   | 0x04   | file sector
 ...    | ...    | 0
-0x1FC  | 0x04   | link
-entry point is an offset in bytes
 
-Directory Descriptor Link
+attributes
+offset (bits) | length | name
+--------------|--------|-----
+0             | 1      | executable
+1             | 1      | protect location
+2             | 30     | 0
+if marked with protect location the files location on disk cannot be changed
+
+string sector:
 offset | length | name
 -------|--------|-----
-...    | ...    | 0
-0x20   | 0x04   | start sector of the file
-0x24   | 0x04   | files length in sectors
-...    | ...    | 0
-0x1FC  | 0x04   | link
+0x1FB  | 0x04   | link
+this will link to further string sector if needed
 
-File Descriptor Link
+File:
 offset | length | name
 -------|--------|-----
-...    | ...    | 0
-0x20   | 0x04   | start sector of the file
-0x24   | 0x04   | files length in sectors
-...    | ...    | 0
-0x1FC  | 0x04   | link
+...    | ...    | data
+EOF    | 0x04   | link to further data (sector)
+
+link Descriptor
+offset | length | name
+-------|--------|-----
+0x00   | 0x04   | size (in sectors)
+...    | ...    | data
+EOF    | 0x04   | link to further data (sector)
+
+Directory Entry:
+offset | length | name
+-------|--------|-----
+0x00   | 0x04   | file discriptor (sector)
