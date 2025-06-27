@@ -1,18 +1,18 @@
-#include <harddrive/ata.h>
 #include <filesystem/filesystem.h>
+#include <harddrive/ata.h>
 #include <heap.h>
 #include <idt.h>
 #include <inboutb.h>
-#include <keyboard/input.h>
 #include <interrupts/error_handlers.h>
 #include <interrupts/irq_handlers.h>
 #include <interrupts/system_calls.h>
+#include <keyboard/input.h>
 #include <memutils.h>
 #include <pic.h>
 #include <print.h>
-#include <tss.h>
-#include <terminal/tty.h>
 #include <stdint.h>
+#include <terminal/tty.h>
+#include <tss.h>
 
 struct GDT {
     uint32_t low;

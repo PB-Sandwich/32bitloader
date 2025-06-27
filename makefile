@@ -37,7 +37,7 @@ LD := ld
 LDFLAGS := -m elf_i386 -nostdlib -T linker.ld 
 
 
-.PHONY: all clean run
+.PHONY: all clean run tools
 
 
 run: all
@@ -46,8 +46,10 @@ run: all
 debug: all
 	$(QEMU) -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS) -s -S
 
+tools:
+	make --file ./tools/makefile all
 
-all: $(TARGETS)
+all: $(TARGETS) tools
 	@echo "Linking"
 	@$(LD) $(LDFLAGS) -o $(BUILD_DIR)/kernel.elf $(TARGETS_ELF)
 
@@ -63,7 +65,6 @@ all: $(TARGETS)
 	@truncate -s 65536 $(BUILD_DIR)/$(NAME).img
 	@mkdir -p $(FILE_SYSTEM)
 	@echo "-------------------------------------"
-	@./makefilesystem.py $(FILE_SYSTEM) $(BUILD_DIR)/fs.img --offset $$((0x10000 / 0x200))
 	@echo "-------------------------------------"
 	@cat $(BUILD_DIR)/fs.img >> $(BUILD_DIR)/$(NAME).img
 
