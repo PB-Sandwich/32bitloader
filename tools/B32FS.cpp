@@ -79,7 +79,7 @@ uint32_t pack_filesystem_rec(path directory_path, path root_path, ofstream& file
             file_descriptor->path_offset = path_offset + 1;
             file_descriptor->last_accessed_path_offset = last_accessed_path_offset + 2;
             file_descriptor->last_modified_path_offset = last_accessed_path_offset + 2;
-            file_descriptor->attributes = 0;
+            file_descriptor->attributes = B32FS::EXECUTABLE;
             file_descriptor->file_size_bytes = file_size;
             file_descriptor->framgment_size_sectors = file_size_sectors;
             file_descriptor->file_sector = fsheader.filesystem_size + 2;
@@ -99,6 +99,8 @@ uint32_t pack_filesystem_rec(path directory_path, path root_path, ofstream& file
 
             file_descriptors.push_back(fsheader.filesystem_size);
             fsheader.filesystem_size += file_size_sectors + 2;
+
+            cout << "Packed file: /" << entry.path().lexically_relative(root_path).string() << " (" << file_size << " bytes)\n";
         }
         if (entry.is_directory()) {
             file_descriptors.push_back(pack_filesystem_rec(entry.path(), directory_path, file, fsheader));
@@ -144,6 +146,8 @@ uint32_t pack_filesystem_rec(path directory_path, path root_path, ofstream& file
         file << (uint8_t)0;
     }
     fsheader.filesystem_size += directory_size_sectors;
+
+    cout << "Packed directory: /" << directory_path.lexically_relative(root_path).string() << " (" << file_descriptors.size() << " files)\n";
 
     delete[] sector;
     return descriptor_sector;
@@ -211,7 +215,7 @@ int pack_filesystem(vector<string> args)
             file_descriptor->path_offset = path_offset + 1;
             file_descriptor->last_accessed_path_offset = last_accessed_path_offset + 2;
             file_descriptor->last_modified_path_offset = last_accessed_path_offset + 2;
-            file_descriptor->attributes = 0;
+            file_descriptor->attributes = B32FS::EXECUTABLE;
             file_descriptor->file_size_bytes = file_size;
             file_descriptor->framgment_size_sectors = file_size_sectors;
             file_descriptor->file_sector = fsheader.filesystem_size + 2;
@@ -231,6 +235,8 @@ int pack_filesystem(vector<string> args)
 
             file_descriptors.push_back(fsheader.filesystem_size);
             fsheader.filesystem_size += file_size_sectors + 2;
+
+            cout << "Packed file: /" << entry.path().lexically_relative(directory_path).string() << " (" << file_size << " bytes)\n";
         }
         if (entry.is_directory()) {
             file_descriptors.push_back(pack_filesystem_rec(entry.path(), directory_path, file, fsheader));
@@ -270,9 +276,14 @@ int pack_filesystem(vector<string> args)
     }
     fsheader.filesystem_size += directory_size_sectors;
 
+    cout << "Packed directory: /"  << " (" << file_descriptors.size() << " files)\n";
+
     file.seekp(0, ios::beg);
     file.write((const char*)&fsheader, sizeof(fsheader));
     file.close();
+
+    cout << "Packed filesystem to " << file_path << " with size " << fsheader.filesystem_size << " sectors\n";
+    cout << "root descriptor sector: " << fsheader.root_descriptor << "\n";
 
     delete[] sector;
     return 0;

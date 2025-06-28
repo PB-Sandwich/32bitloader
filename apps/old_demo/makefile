@@ -9,4 +9,4 @@ all:
 
 	ld -m elf_i386 -nostdlib -Ttext=$(APP_START) -o build/apps/$(PROJECT_NAME).elf build/apps/$(PROJECT_NAME).o
 	
-	cp build/apps/$(PROJECT_NAME).elf build/root/
+	cp build/apps/$(PROJECT_NAME).elf build/root/$(PROJECT_NAME).bin

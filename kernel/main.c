@@ -199,18 +199,102 @@ void kernel_entry(struct GDT* gdt)
         ;
 }
 
+void launch_app(FS_RAMFileDescriptor* file)
+{
+    printf("%s\n", file->name);
+    fs_read_file((void*)0x300000 - 4, file->hdd_file_descriptor.file_size_bytes, file);
+    fs_close_file(file);
+    uint32_t* entry_point = (uint32_t*)(0x300000 - 4);
+    void (*entry_function)(void*) = (void*)*entry_point;
+    entry_function(&kernel_exports);
+    clear();
+}
+
+void display_file_info(FS_RAMFileDescriptor* file)
+{
+    clear();
+    printf("Name: %s\n", file->name);
+    printf("Type: ");
+    switch (file->hdd_file_descriptor.type) {
+    case FS_FILE:
+        printf("File");
+        break;
+    case FS_DIRECTORY:
+        printf("Directory");
+        break;
+    case FS_BLOCK_DEVICE:
+        printf("Block Device");
+        break;
+    }
+    printf("\n");
+    printf("Path: %s\n", file->path);
+    printf("Last accessed by: %s\n", file->last_accessed_path);
+    printf("Last modified by: %s\n", file->last_modified_path);
+    printf("Size: %d bytes\n", file->hdd_file_descriptor.file_size_bytes);
+    printf("Size on disk: %d bytes\n", ((file->hdd_file_descriptor.file_size_bytes + 511) / 512) * 512);
+    printf("Attributes: %x\n", file->hdd_file_descriptor.attributes);
+
+    set_cursor_pos(0, VGA_HEIGHT - 1);
+    printf("Press any key to leave...");
+
+    wait_for_keypress();
+    clear();
+};
+
+void display_list(FS_RAMFileDescriptor* list, uint32_t list_len, uint32_t selection)
+{
+    set_cursor_pos(0, 0);
+    printf("j/k for up and down; i for info; enter to luanch\n");
+    for (uint32_t i = 0; i < list_len; i++) {
+        if (selection == i) {
+            set_color(Black, LightGray);
+        }
+        printf("%s\n", list[i].name);
+        set_color(White, Black);
+    }
+}
+
 int main()
 {
+    clear();
+
     init_heap((uint8_t*)0x210000, 0x10000);
 
     fs_init_filesystem(0x10000 / SECTOR_SIZE);
 
-    FS_RAMFileDescriptor *file = fs_open_file("/testdir");
-    printf("%s\n", file->name);
-    printf("%s\n", file->path);
-    printf("%s\n", file->last_accessed_path);
-    printf("%s\n", file->last_modified_path);
-    fs_close_file(file);
+    FS_RAMFileDescriptor* file = fs_open_file("/");
+    FS_RAMFileDescriptor* entries = fs_read_directory(file);
+    uint32_t dir_len = file->hdd_file_descriptor.file_size_bytes / 4;
+
+    display_list(entries, dir_len, 0);
+
+    uint32_t selection = 0;
+    while (1) {
+        enum Keycode kc = wait_for_keypress();
+        switch (kc) {
+        case J:
+            if (selection < dir_len - 1) {
+                selection++;
+            }
+            break;
+        case K:
+            if (selection > 0) {
+                selection--;
+            }
+            break;
+        case ENTER:
+            launch_app(&entries[selection]);
+            break;
+        case I:
+            display_file_info(&entries[selection]);
+            break;
+        }
+        display_list(entries, dir_len, selection);
+    }
+
+    fs_free_directory(entries, dir_len);
+
+    dump_heap();
 
     return 0;
 }

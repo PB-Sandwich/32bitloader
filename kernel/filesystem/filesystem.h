@@ -38,6 +38,7 @@ typedef struct {
 
 typedef struct {
     uint32_t hdd_sector;
+    uint32_t position;
     char* name;
     char* path;
     char* last_accessed_path;
@@ -49,3 +50,8 @@ void fs_init_filesystem(uint32_t fsheader_sector);
 
 FS_RAMFileDescriptor* fs_open_file(char* path);
 void fs_close_file(FS_RAMFileDescriptor* file);
+
+uint32_t fs_read_file(void* buffer, uint32_t size, FS_RAMFileDescriptor* file);
+
+FS_RAMFileDescriptor* fs_read_directory(FS_RAMFileDescriptor* file);
+void fs_free_directory(FS_RAMFileDescriptor* entries, uint32_t size);

@@ -2,7 +2,6 @@
 #include <harddrive/hdd.h>
 #include <heap.h>
 #include <memutils.h>
-#include <print.h>
 #include <stdint.h>
 
 uint32_t fsheader_sector = 0;
@@ -100,7 +99,6 @@ uint32_t path_to_sector(char* path, uint32_t directory_sector)
         FS_HDDFileDescriptor* sub_file_desc = (FS_HDDFileDescriptor*)malloc(SECTOR_SIZE);
         hdd_read(entries[i], 1, sub_file_desc);
         file_name = retrive_string(file_name, sub_file_desc->name_offset, sub_file_desc->string_sector);
-        printf("%s\n", file_name);
         if (strcmp(name, file_name) == 0) {
             sector = path_to_sector(path + strlen(name), entries[i]);
             free(sub_file_desc);
@@ -120,7 +118,7 @@ uint32_t path_to_sector(char* path, uint32_t directory_sector)
 FS_RAMFileDescriptor* fs_open_file(char* path)
 {
     uint32_t sector = path_to_sector(path, fsheader.root);
-    FS_HDDFileDescriptor *hddfile = (FS_HDDFileDescriptor*)malloc(SECTOR_SIZE);
+    FS_HDDFileDescriptor* hddfile = (FS_HDDFileDescriptor*)malloc(SECTOR_SIZE);
     hdd_read(sector, 1, hddfile);
 
     FS_RAMFileDescriptor* file = (FS_RAMFileDescriptor*)malloc(sizeof(FS_RAMFileDescriptor));
@@ -130,6 +128,7 @@ FS_RAMFileDescriptor* fs_open_file(char* path)
     free(hddfile);
 
     file->hdd_sector = sector;
+    file->position = 0;
     file->name = retrive_string(NULL, file->hdd_file_descriptor.name_offset, file->hdd_file_descriptor.string_sector);
     file->path = retrive_string(NULL, file->hdd_file_descriptor.path_offset, file->hdd_file_descriptor.string_sector);
     file->last_accessed_path = retrive_string(NULL, file->hdd_file_descriptor.last_accessed_path_offset, file->hdd_file_descriptor.string_sector);
@@ -137,10 +136,77 @@ FS_RAMFileDescriptor* fs_open_file(char* path)
     return file;
 }
 
-void fs_close_file(FS_RAMFileDescriptor* file) {
+void fs_open_file_sector(uint32_t sector, FS_RAMFileDescriptor* file)
+{
+    FS_HDDFileDescriptor* hddfile = (FS_HDDFileDescriptor*)malloc(SECTOR_SIZE);
+    hdd_read(sector, 1, hddfile);
+
+    memcpy(&file->hdd_file_descriptor, hddfile, sizeof(FS_HDDFileDescriptor));
+
+    free(hddfile);
+
+    file->hdd_sector = sector;
+    file->position = 0;
+    file->name = retrive_string(NULL, file->hdd_file_descriptor.name_offset, file->hdd_file_descriptor.string_sector);
+    file->path = retrive_string(NULL, file->hdd_file_descriptor.path_offset, file->hdd_file_descriptor.string_sector);
+    file->last_accessed_path = retrive_string(NULL, file->hdd_file_descriptor.last_accessed_path_offset, file->hdd_file_descriptor.string_sector);
+    file->last_modified_path = retrive_string(NULL, file->hdd_file_descriptor.last_modified_path_offset, file->hdd_file_descriptor.string_sector);
+}
+
+void fs_close_file(FS_RAMFileDescriptor* file)
+{
     free(file->name);
     free(file->path);
     free(file->last_accessed_path);
     free(file->last_modified_path);
     free(file);
+}
+
+// returns the size (in bytes) read
+uint32_t fs_read_file(void* buffer, uint32_t size, FS_RAMFileDescriptor* file)
+{
+    uint32_t pos = file->position;
+    uint32_t sector_pos = (pos + SECTOR_SIZE - 1) / SECTOR_SIZE;
+    if (size + pos > file->hdd_file_descriptor.file_size_bytes) {
+        size = file->hdd_file_descriptor.file_size_bytes - pos;
+    }
+    uint32_t n_sectors = (size + SECTOR_SIZE - 1) / SECTOR_SIZE;
+
+    if (file->hdd_file_descriptor.file_size_bytes < file->hdd_file_descriptor.framgment_size_sectors * SECTOR_SIZE) {
+        void* temp_buffer = (void*)malloc(n_sectors * SECTOR_SIZE);
+        hdd_read(file->hdd_file_descriptor.file_sector + sector_pos, n_sectors, temp_buffer);
+        memcpy(buffer, temp_buffer, size);
+        free(temp_buffer);
+        return size;
+    } else {
+        return 0; // TODO: implement file fragmenting
+    }
+}
+
+// returns the number of entries read
+// mallocs the number of entries itself
+FS_RAMFileDescriptor* fs_read_directory(FS_RAMFileDescriptor* file)
+{
+    uint32_t size = file->hdd_file_descriptor.file_size_bytes;
+    uint32_t* dir_data = (uint32_t*)malloc(size);
+    fs_read_file(dir_data, size, file);
+
+    FS_RAMFileDescriptor *entries = (FS_RAMFileDescriptor*)malloc(sizeof(FS_RAMFileDescriptor) * (size / 4));
+    for (uint32_t i = 0; i < size / 4; i++) {
+        fs_open_file_sector(dir_data[i], &entries[i]);
+    }
+
+    free(dir_data);
+    return entries;
+}
+
+void fs_free_directory(FS_RAMFileDescriptor* entries, uint32_t size)
+{
+    for (int i = 0; i < size; i++) {
+        free(entries[i].name);
+        free(entries[i].path);
+        free(entries[i].last_accessed_path);
+        free(entries[i].last_modified_path);
+    }
+    free(entries);
 }

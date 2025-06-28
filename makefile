@@ -70,14 +70,17 @@ kernel: $(TARGETS)
 	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).img
 
 filesystem: tools
+	@echo "-------------------------------------"
+	@echo "Building filesystem"
+	@echo "Converting elfs to binaries"
+	@./tools/convert-elf.sh $(BUILD_DIR)/root/
 	@echo "Preparing disk image"
 	@# fill to 0xffff
 	@truncate -s 65536 $(BUILD_DIR)/$(NAME).img
 	@mkdir -p $(FILE_SYSTEM)
-	@echo "-------------------------------------"
-	@./build/tools/B32FS pack ./build/root ./build/fs.img $$((0x10000 / 0x200))
-	@echo "-------------------------------------"
+	@./build/tools/B32FS pack $(BUILD_DIR)/root $(BUILD_DIR)/fs.img $$((0x10000 / 0x200))
 	@cat $(BUILD_DIR)/fs.img >> $(BUILD_DIR)/$(NAME).img
+	@echo "-------------------------------------"
 	
 
 clean:

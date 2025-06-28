@@ -16,4 +16,4 @@ all:
 
 	$(LD) $(LDFLAGS) -o build/apps/$(PROJECT_NAME).elf build/apps/$(PROJECT_NAME)/$(PROJECT_NAME).o -L$(LIBC_PATH) -l$(LIBC_NAME)
 	
-	cp build/apps/$(PROJECT_NAME).elf build/root/
+	cp build/apps/$(PROJECT_NAME).elf build/root/$(PROJECT_NAME).bin
