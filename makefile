@@ -22,6 +22,7 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/heap.c.o \
 		$(BUILD_DIR)/kernel/terminal/tty.c.o \
 		$(BUILD_DIR)/kernel/harddrive/ata.c.o \
+		$(BUILD_DIR)/kernel/harddrive/hdd.c.o \
 		$(BUILD_DIR)/kernel/keyboard/input.c.o \
 		$(BUILD_DIR)/kernel/filesystem/filesystem.c.o \
 		$(BUILD_DIR)/kernel/interrupts/error_handlers.int.c.o \
@@ -38,19 +39,29 @@ LD := ld
 LDFLAGS := -m elf_i386 -nostdlib -T linker.ld 
 
 
-.PHONY: all clean run tools
+.PHONY: all clean run tools kernel libs apps
 
 
-run: all
+all: tools kernel lib apps filesystem
+
+run: filesystem
 	$(QEMU) -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS)
 
-debug: all
+debug: filesystem
 	$(QEMU) -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS) -s -S
+
+libs:
+	@echo "Building standard c library"
+	make --file lib/goblibc/makefile all
+
+apps: libs
+	@echo "Building default apps"
+	make --file apps/makefile all
 
 tools:
 	make --file ./tools/makefile all
 
-all: $(TARGETS) tools
+kernel: $(TARGETS)
 	@echo "Linking"
 	@$(LD) $(LDFLAGS) -o $(BUILD_DIR)/kernel.elf $(TARGETS_ELF)
 
@@ -58,19 +69,16 @@ all: $(TARGETS) tools
 	@objcopy -O binary $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/kernel.bin
 	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).img
 
-	@echo "Building standard c library"
-	make --file lib/goblibc/makefile all
-
-	@echo "Building default apps"
-	make --file apps/makefile all
-
+filesystem: tools
 	@echo "Preparing disk image"
 	@# fill to 0xffff
 	@truncate -s 65536 $(BUILD_DIR)/$(NAME).img
 	@mkdir -p $(FILE_SYSTEM)
 	@echo "-------------------------------------"
+	@./build/tools/B32FS pack ./build/root ./build/fs.img $$((0x10000 / 0x200))
 	@echo "-------------------------------------"
 	@cat $(BUILD_DIR)/fs.img >> $(BUILD_DIR)/$(NAME).img
+	
 
 clean:
 	rm -rf $(BUILD_DIR)

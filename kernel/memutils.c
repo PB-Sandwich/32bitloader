@@ -1,4 +1,3 @@
-
 #include "memutils.h"
 #include <stdint.h>
 
@@ -40,14 +39,18 @@ char* strcpy(char* str_dest, char* str_source)
     return memcpy(str_dest, str_source, len);
 }
 
-int strcmp(const char *p1, const char *p2)
+char* strncpy(char* str_dest, char* str_source, uint32_t len)
 {
-    const unsigned char *s1 = (const unsigned char *)p1;
-    const unsigned char *s2 = (const unsigned char *)p2;
+    return memcpy(str_dest, str_source, len);
+}
+
+int strcmp(const char* p1, const char* p2)
+{
+    const unsigned char* s1 = (const unsigned char*)p1;
+    const unsigned char* s2 = (const unsigned char*)p2;
     unsigned char c1, c2;
 
-    do
-    {
+    do {
         c1 = (unsigned char)*s1++;
         c2 = (unsigned char)*s2++;
         if (c1 == '\0')
@@ -57,14 +60,13 @@ int strcmp(const char *p1, const char *p2)
     return c1 - c2;
 }
 
-int strncmp(const char *p1, const char *p2, int len)
+int strncmp(const char* p1, const char* p2, uint32_t len)
 {
-    const unsigned char *s1 = (const unsigned char *)p1;
-    const unsigned char *s2 = (const unsigned char *)p2;
+    const unsigned char* s1 = (const unsigned char*)p1;
+    const unsigned char* s2 = (const unsigned char*)p2;
     unsigned char c1, c2;
     int counter = 0;
-    do
-    {
+    do {
         c1 = (unsigned char)*s1++;
         c2 = (unsigned char)*s2++;
         if (c1 == '\0')
@@ -89,9 +91,21 @@ char* strstr(char* str, char* substr)
     return ret;
 }
 
-void* memset(void* buf, int n, uint32_t size) {
+void* memset(void* buf, int n, uint32_t size)
+{
     for (uint8_t* i = buf; i < (buf + size); i++) {
         *i = n;
     }
     return buf;
+}
+
+char* strchr(char* str, char c)
+{
+    int len = strlen(str);
+    for (char* i = str; i < str + len; i++) {
+        if (*i == c) {
+            return i;
+        }
+    }
+    return NULL;
 }

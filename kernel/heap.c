@@ -1,6 +1,7 @@
-#include <stdint.h>
 #include "heap.h"
 #include <memutils.h>
+#include <print.h>
+#include <stdint.h>
 
 uint8_t* heap = NULL;
 uint32_t heap_size = 0;
@@ -61,6 +62,10 @@ BlockHeader* merge(BlockHeader* entry, uint8_t direction)
 void* malloc(uint32_t size)
 {
     BlockHeader* current = first_entry;
+
+    if (size == 0) {
+        return NULL;
+    }
 
     while (current != NULL) {
         if (current->free == 0) {
@@ -156,5 +161,16 @@ void free(void* ptr)
     }
     while (entry->next != NULL && entry->next->free == 1) {
         entry = merge(entry, 'n');
+    }
+}
+
+void dump_heap()
+{
+    BlockHeader* current = first_entry;
+    while (current != NULL) {
+        printf("Block %x:\n", current);
+        printf("    size: %d\n", current->size);
+        printf("    free: %d\n", current->free);
+        current = current->next;
     }
 }

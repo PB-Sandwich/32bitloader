@@ -40,7 +40,8 @@ struct FileDescriptor {
     uint32_t last_accessed_path_offset;
     uint32_t last_modified_path_offset;
     uint32_t attributes;
-    uint32_t file_size;
+    uint32_t file_size_bytes;
+    uint32_t framgment_size_sectors;
     uint32_t file_sector;
 } __attribute__((packed));
 
@@ -54,7 +55,7 @@ uint32_t pack_filesystem_rec(path directory_path, path root_path, ofstream& file
     memset(sector, 0, 512);
 
     for (const auto& entry :
-        directory_iterator(root_path)) {
+        directory_iterator(directory_path)) {
         if (entry.is_regular_file()) {
             ifstream file_in(entry.path());
 
@@ -66,7 +67,8 @@ uint32_t pack_filesystem_rec(path directory_path, path root_path, ofstream& file
 
             // prepare metadata
             uint32_t path_offset = (uint32_t)entry.path().filename().string().length();
-            string actual_path = entry.path().string().substr(root_path.string().length() - 1, entry.path().string().length() + 1 - root_path.string().length() - path_offset);
+            path rel_path = entry.path().lexically_relative(root_path);
+            string actual_path = '/' + rel_path.parent_path().string();
             uint32_t last_accessed_path_offset = path_offset + actual_path.length();
 
             // prepare descriptor
@@ -78,12 +80,13 @@ uint32_t pack_filesystem_rec(path directory_path, path root_path, ofstream& file
             file_descriptor->last_accessed_path_offset = last_accessed_path_offset + 2;
             file_descriptor->last_modified_path_offset = last_accessed_path_offset + 2;
             file_descriptor->attributes = 0;
-            file_descriptor->file_size = file_size_sectors;
+            file_descriptor->file_size_bytes = file_size;
+            file_descriptor->framgment_size_sectors = file_size_sectors;
             file_descriptor->file_sector = fsheader.filesystem_size + 2;
 
             file.write((const char*)sector, 512);
 
-            string string_sector = entry.path().filename().string() + '\0' + actual_path + '\0' + "MKB32FS";
+            string string_sector = entry.path().filename().string() + '\0' + actual_path + '\0' + "MKB32FS" + '\0';
             copy(string_sector.begin(), string_sector.end(), sector);
             file.write((const char*)sector, 512);
 
@@ -105,25 +108,29 @@ uint32_t pack_filesystem_rec(path directory_path, path root_path, ofstream& file
     // prepare metadata
     uint32_t directory_size_sectors = (file_descriptors.size() * 4 + 511) / 512;
 
-    uint32_t path_offset = (uint32_t)directory_path.filename().string().length();
-    string actual_path = directory_path.string().substr(root_path.string().length() - 1, directory_path.string().length() + 1 - root_path.string().length() - path_offset);
-    uint32_t last_accessed_path_offset = path_offset + actual_path.length();
+    uint32_t path_offset = (uint32_t)directory_path.filename().string().length() + 1;
+    path rel_path = directory_path.lexically_relative(root_path);
+    string actual_path = '/' + rel_path.parent_path().string();
+    uint32_t last_accessed_path_offset = path_offset + actual_path.length() + 1;
+
+    uint32_t descriptor_sector = fsheader.filesystem_size;
 
     B32FS::FileDescriptor* dir = (B32FS::FileDescriptor*)sector;
     dir->type = B32FS::DIRECTORY,
     dir->string_sector = fsheader.filesystem_size + 1,
     dir->name_offset = 0,
-    dir->path_offset = 5,
-    dir->last_accessed_path_offset = 7,
-    dir->last_modified_path_offset = 7,
+    dir->path_offset = path_offset,
+    dir->last_accessed_path_offset = last_accessed_path_offset,
+    dir->last_modified_path_offset = last_accessed_path_offset,
     dir->attributes = 0,
-    dir->file_size = directory_size_sectors,
+    dir->file_size_bytes = file_descriptors.size() * 4;
+    dir->framgment_size_sectors = directory_size_sectors;
     dir->file_sector = fsheader.filesystem_size + 2,
 
     file.write((const char*)sector, 512);
 
-    string name = root_path.filename();
-    string string_sector = name + '\0' + "/" + '\0' + "MKB32FS";
+    string name = directory_path.filename();
+    string string_sector = name + '\0' + actual_path + '\0' + "MKB32FS" + '\0';
 
     copy(string_sector.begin(), string_sector.end(), sector);
     file.write((const char*)sector, 512);
@@ -138,13 +145,18 @@ uint32_t pack_filesystem_rec(path directory_path, path root_path, ofstream& file
     }
     fsheader.filesystem_size += directory_size_sectors;
 
-    return fsheader.filesystem_size - 2;
+    delete[] sector;
+    return descriptor_sector;
 }
 
 int pack_filesystem(vector<string> args)
 {
     path directory_path = args[2];
     path file_path = args[3];
+    uint32_t offset = 0;
+    if (args.size() > 4) {
+        offset = stoi(args[4]);
+    }
 
     if (!exists(directory_path)) {
         cerr << directory_path << " does not exist\n\n";
@@ -166,7 +178,7 @@ int pack_filesystem(vector<string> args)
 
     B32FS::FSHeader fsheader = {
         .root_descriptor = 0,
-        .filesystem_size = 1,
+        .filesystem_size = 1 + offset,
     };
 
     uint8_t* sector = new uint8_t[512];
@@ -188,7 +200,7 @@ int pack_filesystem(vector<string> args)
 
             // prepare metadata
             uint32_t path_offset = (uint32_t)entry.path().filename().string().length();
-            string actual_path = entry.path().string().substr(directory_path.string().length() - 1, entry.path().string().length() + 1 - directory_path.string().length() - path_offset);
+            string actual_path = entry.path().string().substr(directory_path.string().length(), entry.path().string().length() - directory_path.string().length() - path_offset);
             uint32_t last_accessed_path_offset = path_offset + actual_path.length();
 
             // prepare descriptor
@@ -200,12 +212,13 @@ int pack_filesystem(vector<string> args)
             file_descriptor->last_accessed_path_offset = last_accessed_path_offset + 2;
             file_descriptor->last_modified_path_offset = last_accessed_path_offset + 2;
             file_descriptor->attributes = 0;
-            file_descriptor->file_size = file_size_sectors;
+            file_descriptor->file_size_bytes = file_size;
+            file_descriptor->framgment_size_sectors = file_size_sectors;
             file_descriptor->file_sector = fsheader.filesystem_size + 2;
 
             file.write((const char*)sector, 512);
 
-            string string_sector = entry.path().filename().string() + '\0' + actual_path + '\0' + "MKB32FS";
+            string string_sector = entry.path().filename().string() + '\0' + actual_path + '\0' + "MKB32FS" + '\0';
             copy(string_sector.begin(), string_sector.end(), sector);
             file.write((const char*)sector, 512);
 
@@ -234,17 +247,19 @@ int pack_filesystem(vector<string> args)
     root->last_accessed_path_offset = 7,
     root->last_modified_path_offset = 7,
     root->attributes = 0,
-    root->file_size = directory_size_sectors,
+    root->file_size_bytes = file_descriptors.size() * 4;
+    root->framgment_size_sectors = directory_size_sectors;
     root->file_sector = fsheader.filesystem_size + 2,
 
     file.write((const char*)sector, 512);
 
     string name = "root";
-    string string_sector = name + '\0' + "/" + '\0' + "MKB32FS";
+    string string_sector = name + '\0' + "/" + '\0' + "MKB32FS" + '\0';
 
     copy(string_sector.begin(), string_sector.end(), sector);
     file.write((const char*)sector, 512);
 
+    fsheader.root_descriptor = fsheader.filesystem_size;
     fsheader.filesystem_size += 2;
 
     for (uint32_t descriptor : file_descriptors) {
@@ -255,7 +270,6 @@ int pack_filesystem(vector<string> args)
     }
     fsheader.filesystem_size += directory_size_sectors;
 
-    fsheader.root_descriptor = fsheader.filesystem_size;
     file.seekp(0, ios::beg);
     file.write((const char*)&fsheader, sizeof(fsheader));
     file.close();

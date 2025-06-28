@@ -102,6 +102,7 @@ Directory Entry:
 length | name
 -------|-----
 0x04   | sector of next descriptor
+
 if entry = 0, it is not present
 
 512 byte sector: File Descriptor:
@@ -114,7 +115,8 @@ offset | length | name
 0x0d   | 0x04   | last accessed by path offset
 0x11   | 0x04   | last modified by path offset
 0x15   | 0x04   | attributes
-0x19   | 0x04   | file size (in sectors)
+0x19   | 0x04   | file size (in bytes)
+0x1d   | 0x04   | file fragment size (in sectors)
 0x1d   | 0x04   | file sector
 ...    | ...    | 0
 
@@ -124,12 +126,14 @@ offset (bits) | length | name
 0             | 1      | executable
 1             | 1      | protect location
 2             | 30     | 0
+
 if marked with protect location the files location on disk cannot be changed
 
 string sector:
 offset | length | name
 -------|--------|-----
 0x1FB  | 0x04   | link
+
 this will link to further string sector if needed
 
 File:

@@ -12,10 +12,6 @@ void divide_by_zero(struct interrupt_frame* frame)
 }
 void debug(struct interrupt_frame* frame)
 {
-    clear();
-    printf("debug error @ %x\n", frame->eip);
-    while (1)
-        ;
     return;
 }
 void non_maskable_interrupt(struct interrupt_frame* frame)

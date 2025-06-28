@@ -199,143 +199,18 @@ void kernel_entry(struct GDT* gdt)
         ;
 }
 
-void display_file_list(DirectoryEntry_t* list, uint8_t selection)
-{
-    for (int i = 0; i < DIRECTORY_LENGTH; i++) {
-        if (list[i].header.name[0] == '\0') {
-            continue;
-        }
-        if (i == selection) {
-            set_color(Black, LightGray);
-        }
-        printf(" %s ", (char*)list[i].header.name);
-        if (list[i].header.type == EXECUTABLE_FILE) {
-            set_color(Black, Green);
-            printf(" Executable \n");
-            set_color(White, Black);
-        } else if (list[i].header.type == DIRECTORY) {
-            set_color(Black, LightBlue);
-            printf(" Directory \n");
-            set_color(White, Black);
-        } else {
-            printf("\n");
-        }
-        set_color(White, Black);
-    }
-}
-
-int launch_app(DirectoryEntry_t* entry, char* intro_msg)
-{
-    File_t file = read_file_descriptor_sector(entry->sector);
-    read_file((uint32_t*)0x300000, file.file_descriptor);
-    int (*app_entry)(void*) = (uint32_t*)file.file_descriptor.entry_point;
-
-    clear();
-    int ret = app_entry(&kernel_exports);
-
-    clear();
-    printf(intro_msg);
-
-    return ret;
-}
-
-void print_info(DirectoryEntry_t* entry, char* intro_msg)
-{
-    File_t file_u = read_file_descriptor_sector(entry->sector);
-    read_file((uint32_t*)0x300000, file_u.file_descriptor);
-    clear();
-    FileDescriptor_t* file;
-    switch (file_u.file_descriptor.type) {
-    case DIRECTORY:
-        Directory_t* dir = &file_u.directory;
-        printf("Type: Directory\n");
-        printf("Name: %s\n", dir->name);
-        break;
-    case FILE:
-        file = &file_u.file_descriptor;
-        printf("Type: File\n");
-        printf("Name: %s\n", file->name);
-        printf("Location on disk: Sector %x\n", file->start);
-        printf("Size on disk: %x Sectors\n", file->length);
-        break;
-    case EXECUTABLE_FILE:
-        file = &file_u.file_descriptor;
-        printf("Type: Executable File\n");
-        printf("Name: %s\n", file->name);
-        printf("Location on disk: Sector %x\n", file->start);
-        printf("Size on disk: %x Sectors\n", file->length);
-        printf("Entry point: %x\n", file->entry_point);
-        break;
-    }
-    set_cursor_pos(0, VGA_HEIGHT - 1);
-    printf("Press any key to leave.");
-    wait_for_keypress();
-    clear();
-    printf(intro_msg);
-}
-
 int main()
 {
     init_heap((uint8_t*)0x210000, 0x10000);
 
-    clear();
-    filesystem_init(0x10000 / 0x200, (uint32_t*)0x210000);
-    FileDescriptor_t file_;
-    file_.type = FILE;
+    fs_init_filesystem(0x10000 / SECTOR_SIZE);
 
-    char* intro_msg = "Welcome!\nWhat app would you like to launch?\nj for down, k for up, enter to launch, i for info\nApp list:\n";
-    printf(intro_msg);
-
-    char* path = "/";
-    File_t file = read_file_descriptor(path);
-    if (file.directory.type == ERROR) {
-        FSError_t error = file.error;
-        printf("Error code %d\nWith message: %s\n", error.type, error.message);
-        return 1;
-    }
-    if (file.directory.type != DIRECTORY) {
-        printf("Path not directory\n");
-        return 1;
-    }
-    Directory_t dir = file.directory;
-
-    uint8_t number_of_entries = 0;
-    DirectoryEntry_t list[DIRECTORY_LENGTH];
-    get_directory_list(list, dir);
-    for (int i = 0; i < DIRECTORY_LENGTH; i++) {
-        if (list[i].header.name[0] == '\0') {
-            break;
-        }
-        number_of_entries++;
-    }
-    display_file_list(list, 0);
-
-    uint8_t selection = 0;
-    while (1) {
-        enum Keycode kc = wait_for_keypress();
-        switch (kc) {
-        case J:
-            if (selection < number_of_entries - 1) {
-                selection++;
-            }
-            break;
-        case K:
-            if (selection > 0) {
-                selection--;
-            }
-            break;
-        case I:
-            print_info(&list[selection], intro_msg);
-            break;
-        case ENTER:
-            if (list[selection].header.type == EXECUTABLE_FILE) {
-                launch_app(&list[selection], intro_msg);
-            }
-            break;
-        }
-        set_cursor_pos(0, 4);
-        display_file_list(list, selection);
-    }
+    FS_RAMFileDescriptor *file = fs_open_file("/testdir");
+    printf("%s\n", file->name);
+    printf("%s\n", file->path);
+    printf("%s\n", file->last_accessed_path);
+    printf("%s\n", file->last_modified_path);
+    fs_close_file(file);
 
     return 0;
 }

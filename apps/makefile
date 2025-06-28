@@ -7,6 +7,5 @@ all:
 	make --file apps/old_demo/makefile all
 	make --file apps/test_helper/makefile all
 	make --file apps/minesweeper/makefile all
-	make --file apps/hellocpp/makefile all
 	make --file apps/brainfuck/makefile all
 	
