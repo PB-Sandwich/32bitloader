@@ -201,9 +201,9 @@ void kernel_entry(struct GDT* gdt)
 
 void launch_app(FS_RAMFileDescriptor* file)
 {
-    printf("%s\n", file->name);
+    clear();
+    memset((void*)(0x300000 + file->hdd_file_descriptor.file_size_bytes - 4), 0, 0x200);
     fs_read_file((void*)0x300000 - 4, file->hdd_file_descriptor.file_size_bytes, file);
-    fs_close_file(file);
     uint32_t* entry_point = (uint32_t*)(0x300000 - 4);
     void (*entry_function)(void*) = (void*)*entry_point;
     entry_function(&kernel_exports);
@@ -244,7 +244,7 @@ void display_file_info(FS_RAMFileDescriptor* file)
 void display_list(FS_RAMFileDescriptor* list, uint32_t list_len, uint32_t selection)
 {
     set_cursor_pos(0, 0);
-    printf("j/k for up and down; i for info; enter to luanch\n");
+    printf("j/k for up and down; i for info; enter to launch\n");
     for (uint32_t i = 0; i < list_len; i++) {
         if (selection == i) {
             set_color(Black, LightGray);
@@ -293,8 +293,6 @@ int main()
     }
 
     fs_free_directory(entries, dir_len);
-
-    dump_heap();
 
     return 0;
 }
