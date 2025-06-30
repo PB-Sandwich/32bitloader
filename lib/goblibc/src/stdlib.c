@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 uint8_t* heap = NULL;
 uint32_t heap_size = 0;
@@ -157,4 +158,61 @@ void free(void* ptr)
     while (entry->next != NULL && entry->next->free == 1) {
         entry = merge(entry, 'n');
     }
+}
+
+
+int atoi(char *buffer)
+{
+    int result = 0;
+    int sign_set = 0;
+    int sign = 1;
+    while (*buffer != '\0')
+    {
+        if (isdigit(*buffer))
+        {
+            sign_set = 1;
+            result += (*buffer) - '0';
+            result *= 10;
+        }
+        if (!sign_set && *buffer == '-')
+        {
+            sign = -1;
+        }
+        buffer++;
+    }
+    return (result / 10) * sign;
+}
+
+char *itoa(int value, char *buffer, int radix)
+{
+    if (value == 0)
+    {
+        buffer[0] = '0';
+        buffer[1] = '\0';
+        return buffer;
+    }
+    char temp[34] = {[33] = '\0'};
+    int32_t i = 0;
+    int sign = (value < 0);
+    if (sign)
+    {
+        value = -value;
+    }
+    for (; value != 0; i++, value /= radix)
+    {
+        int t = value % radix;
+        temp[i] = ((t < 10) ? (t + '0') : (t + 'A' - 10));
+    }
+    if (sign)
+    {
+        temp[i++] = '-';
+    }
+    int32_t len = i;
+
+    for (; i >= 0; i--)
+    {
+        buffer[i] = temp[len - i - 1];
+    }
+    buffer[len] = '\0';
+    return buffer;
 }

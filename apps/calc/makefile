@@ -1,4 +1,4 @@
-PROJECT_NAME := brainfuck
+PROJECT_NAME := calc
 .PHONY: all
 
 LIBC_PATH := ./build/lib/goblibc

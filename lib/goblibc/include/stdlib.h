@@ -1,4 +1,13 @@
-
+/**
+ * @file stdlib.h
+ * @author Sofia "MetalPizzaCat"
+ * @brief Basic reimplementation of stdlib.h from libc, with additional functions like atoi/itoa
+ * @version 0.1
+ * @date 2025-06-30
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #pragma once
 
 #include <stdint.h>
@@ -26,3 +35,7 @@ void free(void *ptr);
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
+
+int atoi(char *buffer);
+
+char *itoa(int value, char *buffer, int radix);
