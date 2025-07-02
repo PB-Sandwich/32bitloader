@@ -8,4 +8,5 @@ all:
 	make --file apps/test_helper/makefile all
 	make --file apps/minesweeper/makefile all
 	make --file apps/brainfuck/makefile all
+	make --file apps/new_test/makefile all
 	

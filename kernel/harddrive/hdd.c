@@ -1,6 +1,7 @@
 #include "hdd.h"
 #include "ata.h"
 #include <stdint.h>
+#include <print.h>
 
 void hdd_read(uint32_t sector, uint32_t n_sectors, void* buffer)
 {
@@ -12,6 +13,6 @@ void hdd_read(uint32_t sector, uint32_t n_sectors, void* buffer)
 void hdd_write(uint32_t sector, uint32_t n_sectors, void* buffer)
 {
     for (uint32_t i = 0; i < n_sectors; i++) {
-        ata_read_sector(sector + i, buffer + i * SECTOR_SIZE);
+        ata_write_sector(sector + i, buffer + i * SECTOR_SIZE);
     }
 }

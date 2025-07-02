@@ -3,12 +3,10 @@
 # the script will use any elf files entry point and make it to a binary file
 FILE_SYSTEM = $(BUILD_DIR)/root
 
-APP_SIZE=$$(stat --format="%s" $(APP_BIN))
-
 QEMU := qemu-system-i386
 QEMU_FLAGS := -m 512M
 
-NAME := 32bitloader
+NAME := EstrOS
 
 SOURCE_DIR := .
 KERNEL_SOURCE_DIR := $(SOURCE_DIR)/kernel
@@ -67,7 +65,7 @@ kernel: $(TARGETS)
 
 	@echo "Making raw binary"
 	@objcopy -O binary $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/kernel.bin
-	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).img
+	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).bin
 
 filesystem: tools
 	@echo "-------------------------------------"
@@ -78,8 +76,8 @@ filesystem: tools
 	@# fill to 0xffff
 	@truncate -s 65536 $(BUILD_DIR)/$(NAME).img
 	@mkdir -p $(FILE_SYSTEM)
-	@./build/tools/B32FS pack $(BUILD_DIR)/root $(BUILD_DIR)/fs.img $$((0x10000 / 0x200))
-	@cat $(BUILD_DIR)/fs.img >> $(BUILD_DIR)/$(NAME).img
+	@./build/tools/EstrOSFS pack $(BUILD_DIR)/root $(BUILD_DIR)/$(NAME).img 
+	@./build/tools/EstrOSFS boot $(BUILD_DIR)/$(NAME).bin $(BUILD_DIR)/$(NAME).img
 	@echo "-------------------------------------"
 	
 
