@@ -22,7 +22,7 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/harddrive/ata.c.o \
 		$(BUILD_DIR)/kernel/harddrive/hdd.c.o \
 		$(BUILD_DIR)/kernel/keyboard/input.c.o \
-		$(BUILD_DIR)/kernel/filesystem/filesystem.c.o \
+		$(BUILD_DIR)/kernel/filesystem/virtual-filesystem.c.o \
 		$(BUILD_DIR)/kernel/interrupts/error_handlers.int.c.o \
 		$(BUILD_DIR)/kernel/interrupts/irq_handlers.int.c.o \
 		$(BUILD_DIR)/kernel/interrupts/system_calls.c.o \
@@ -92,7 +92,7 @@ $(BUILD_DIR)/kernel/boot.bin: $(KERNEL_SOURCE_DIR)/boot.asm
 $(BUILD_DIR)/kernel/%.c.o: $(KERNEL_SOURCE_DIR)/%.c
 	@echo "Compiling $<"
 	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) -c -o $@ $<
+	@$(CC) $(CFLAGS) -mno-80387 -mno-sse -mno-mmx -c -o $@ $<
 
 # interrupts
 $(BUILD_DIR)/kernel/%.int.c.o: $(KERNEL_SOURCE_DIR)/%.c

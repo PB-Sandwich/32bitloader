@@ -7,7 +7,7 @@ TEMP_KERNEL_LOCATION equ 0x7f00
 BOOT_DISK: db 0
 NUMBER_OF_SECTORS: db 0
     mov [BOOT_DISK], dl
-    mov [NUMBER_OF_SECTORS], byte 60
+    mov [NUMBER_OF_SECTORS], byte 70
 
     mov ax, 0
     mov es, ax ; extra segment
@@ -39,7 +39,7 @@ failed_to_read_disk:
 DAP:
     db 0x10          ; size of packet
     db 0             ; reserved
-    dw 50            ; number of sectors to read
+    dw 70            ; number of sectors to read
     dw TEMP_KERNEL_LOCATION
     dw 0             ; segment (we’re in real mode still)
     dq 1             ; starting LBA (starts at 0, so LBA=1 = second sector)

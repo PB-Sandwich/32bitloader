@@ -1,4 +1,4 @@
-#include <filesystem/filesystem.h>
+#include <filesystem/virtual-filesystem.h>
 #include <harddrive/ata.h>
 #include <heap.h>
 #include <idt.h>
@@ -205,6 +205,15 @@ int main()
     clear();
 
     init_heap((uint8_t*)0x210000, 0x10000);
+
+    VFSDriverOperations dops = { 0 };
+    VFSFileOperations fops = { 0 };
+    vfs_init(dops, fops);
+
+    vfs_create_device_file("/dev/hdd", fops, VFS_BLOCK_DEVICE);
+    VFSFile *file = vfs_open_file("/dev/hdd");
+
+    printf("%d\n", file->inode->type);
 
     return 0;
 }
