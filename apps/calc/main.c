@@ -98,6 +98,21 @@ char *fixed_to_str(fixed_t val, char *buffer)
     return buffer;
 }
 
+fixed_t fixed_mul(fixed_t a, fixed_t b)
+{
+    return ((a * b) + (FIXED_WHOLE_POSITION / 2)) / FIXED_WHOLE_POSITION;
+}
+
+fixed_t fixed_div(fixed_t a, fixed_t b)
+{
+    return (((b * FIXED_WHOLE_POSITION) + (a / 2)) / a);
+}
+
+fixed_t fixed_mod(fixed_t a, fixed_t b)
+{
+    return b - ((b / a) * a);
+}
+
 /// @brief Convert a null terminated string into a fixed decimal value
 /// @param buffer String buffer
 /// @return parsed value
@@ -139,14 +154,6 @@ fixed_t str_to_fixed(char *buffer)
 }
 #endif
 
-int prev_random = 1;
-
-int rand()
-{
-    prev_random = (75 * prev_random) % 65537;
-    return prev_random;
-}
-
 enum CalcExprType
 {
     ECET_Constant,
@@ -161,12 +168,12 @@ enum CalcOperationType
     ECOT_Sub,
     ECOT_Mul,
     ECOT_Div,
-    ECOT_Pow
+    ECOT_Mod
 };
 
 union CalcExpressionValue
 {
-    fixed_t constant_value;
+    fixed_t constant;
     enum CalcOperationType operation;
 };
 
@@ -200,6 +207,10 @@ CalcExpression make_expr_op(enum CalcOperationType op)
     return expr;
 }
 
+/// @brief Create an operator expression from a character
+/// @param c Operator character
+/// @param success Value to write the result to, if character does no map to a valid operator this will contain "false"
+/// @return Expression
 CalcExpression make_expr_op_from_char(char c, bool *success)
 {
     CalcExpression expr;
@@ -218,8 +229,8 @@ CalcExpression make_expr_op_from_char(char c, bool *success)
     case '/':
         expr.value.operation = ECOT_Div;
         break;
-    case '^':
-        expr.value.operation = ECOT_Pow;
+    case '%':
+        expr.value.operation = ECOT_Mod;
         break;
     default:
         *success = false;
@@ -229,17 +240,20 @@ CalcExpression make_expr_op_from_char(char c, bool *success)
     return expr;
 }
 
+/// @brief Create an expression from a constant vavlue
+/// @param val Value
+/// @return Expression
 CalcExpression make_expr_const(fixed_t val)
 {
     CalcExpression expr;
     expr.type = ECET_Constant;
-    expr.value.constant_value = val;
+    expr.value.constant = val;
     return expr;
 }
 
 /// @brief Get precedence for the given operator
-/// @param op
-/// @return
+/// @param op Character representation of the operator
+/// @return Precedence
 int32_t get_operator_precedence(char op)
 {
     switch (op)
@@ -248,15 +262,20 @@ int32_t get_operator_precedence(char op)
         return 3;
     case '/':
     case '*':
+    case '%':
         return 2;
     case '+':
     case '-':
+
         return 1;
     default:
         return -1;
     }
 }
 
+/// @brief Get operator precedence for an expression. Returns -1 if expression is not an operator
+/// @param expr Expression
+/// @return Precedence
 int32_t calc_expr_get_operator_precedence(CalcExpression *expr)
 {
     if (expr->type != ECET_Operator)
@@ -270,14 +289,17 @@ int32_t calc_expr_get_operator_precedence(CalcExpression *expr)
         return 1;
     case ECOT_Mul:
     case ECOT_Div:
+    case ECOT_Mod:
         return 2;
-    case ECOT_Pow:
-        return 3;
+
     default:
         return -1;
     }
 }
 
+/// @brief Convert operator to character representation
+/// @param  op Operation
+/// @return
 char operator_to_char(enum CalcOperationType op)
 {
     switch (op)
@@ -290,70 +312,51 @@ char operator_to_char(enum CalcOperationType op)
         return '*';
     case ECOT_Div:
         return '/';
-    case ECOT_Pow:
-        return '^';
+    case ECOT_Mod:
+        return '%';
     default:
         return '?';
     }
 }
 
-void run_value_string_test(struct KernelExports *kernel_exports)
+struct NumberStack
 {
-    char buffer[33];
-    kernel_exports->printf("input values to add:\n");
-    char *line = kernel_exports->get_line();
-    fixed_t f1 = str_to_fixed(line);
-    line = kernel_exports->get_line();
-    fixed_t f2 = str_to_fixed(line);
-    fixed_t f3 = f1 + f2;
-    char buffer_f1[33];
-    char buffer_f2[33];
-    char buffer_f3[33];
+    fixed_t stack[50];
+    int32_t offset;
+};
 
-    kernel_exports->printf("%s + %s = %s", fixed_to_str(f1, buffer_f1), fixed_to_str(f2, buffer_f2), fixed_to_str(f3, buffer_f3));
-    kernel_exports->wait_for_keypress();
+typedef struct NumberStack NumberStack;
 
-    fixed_t val1 = -DECIMAL(0, 1);
-    fixed_t val2 = DECIMAL(0, 3);
-    fixed_t res = val1 + val2;
-    kernel_exports->clear();
-    kernel_exports->printf(fixed_to_str(DECIMAL(3545, 1234), buffer));
-    kernel_exports->printf("\n");
-    kernel_exports->printf(fixed_to_str(DECIMAL(0, 0), buffer));
-    kernel_exports->printf("\n");
-    kernel_exports->printf(fixed_to_str(DECIMAL(0, 9) + DECIMAL(0, 1), buffer));
-    kernel_exports->printf("\n");
-    kernel_exports->printf(fixed_to_str(DECIMAL(65534, 65535) + DECIMAL(0, 0001), buffer));
-    kernel_exports->printf("\n");
-    kernel_exports->printf(fixed_to_str(-DECIMAL(6, 6), buffer));
-    kernel_exports->printf("\n");
-    kernel_exports->printf(fixed_to_str(res, buffer));
-    kernel_exports->printf("\n");
-    kernel_exports->printf(fixed_to_str(DECIMAL(0, 9999) + DECIMAL(0, 1), buffer));
-    kernel_exports->printf("\n");
-
-    kernel_exports->wait_for_keypress();
-
-    fixed_t test_val1 = DECIMAL(0, 3);
-    fixed_t test_val2 = -test_val1;
-
-    kernel_exports->printf("pos: %s\n", itoa(test_val1, buffer, 2));
-    kernel_exports->printf("neg: %s\n", itoa(test_val2, buffer, 2));
-    kernel_exports->wait_for_keypress();
-
-    for (int j = 0; j < 20; j++)
+void number_stack_init(NumberStack *stack)
+{
+    stack->offset = 0;
+    memset(stack->stack, 0, sizeof(int32_t) * 50);
+}
+fixed_t number_stack_pop(NumberStack *stack, bool *success)
+{
+    if (stack->offset == 0)
     {
-        kernel_exports->clear();
-        int val = rand() * ((j % 2) ? 1 : -1);
-        for (int i = 2; i <= 16; i++)
-        {
-            kernel_exports->printf("Number(%d) in base %d = %s\n", val, i, itoa(val, buffer, i));
-        }
-        kernel_exports->wait_for_keypress();
+        *success = false;
+        return 0;
     }
+    *success = true;
+    return stack->stack[--stack->offset];
 }
 
-bool parse_input(const char *input_buffer, int32_t input_buffer_len, char **error_message, CalcExpression *result, int32_t *result_len)
+void number_stack_push(NumberStack *stack, fixed_t val)
+{
+    stack->stack[stack->offset++] = val;
+}
+
+/// @brief Parse math expression input into an array of operators that can then be executed
+/// @param input_buffer Buffer containing the expression text
+/// @param input_buffer_len Length of the expression text buffer
+/// @param error_message Pointer which will store the error message, if any error occurs
+/// @param result Array containing the resulting set of operators. Has to be big enough to contain all values
+/// @param result_buffer_max_len Max size of the array of operations
+/// @param result_len The amount of operators actually stored in the array
+/// @return True if no error has occurred, false otherwise
+bool parse_input(const char *input_buffer, int32_t input_buffer_len, char **error_message, CalcExpression *result, int32_t result_buffer_max_len, int32_t *result_len)
 {
     // buffer used for parsing numbers
     char number_buffer[50];
@@ -365,6 +368,16 @@ bool parse_input(const char *input_buffer, int32_t input_buffer_len, char **erro
     int32_t input_buffer_pos = 0;
     for (; input_buffer_pos < input_buffer_len && input_buffer[input_buffer_pos] != '\0'; input_buffer_pos++)
     {
+        if (result_array_offset >= result_buffer_max_len)
+        {
+            *error_message = "Result buffer is not large enough";
+            return false;
+        }
+        if (expression_stack_offset >= 100)
+        {
+            *error_message = "Expression stack is not large enough";
+            return false;
+        }
         char ch = input_buffer[input_buffer_pos];
         if (ch == ' ')
         {
@@ -435,17 +448,71 @@ bool parse_input(const char *input_buffer, int32_t input_buffer_len, char **erro
     return true;
 }
 
+bool execute(CalcExpression *ops, int32_t ops_len, fixed_t *result, char **error_message)
+{
+    NumberStack stack;
+    number_stack_init(&stack);
+    for (int i = 0; i < ops_len; i++)
+    {
+        switch (ops[i].type)
+        {
+        case ECET_Constant:
+            number_stack_push(&stack, ops[i].value.constant);
+            break;
+        case ECET_Operator:
+        {
+            bool value_grab_result = false;
+
+            fixed_t b = number_stack_pop(&stack, &value_grab_result);
+            if (!value_grab_result)
+            {
+                *error_message = "Not enough values on stack";
+                return false;
+            }
+            fixed_t a = number_stack_pop(&stack, &value_grab_result);
+            if (!value_grab_result)
+            {
+                *error_message = "Not enough values on stack";
+                return false;
+            }
+            switch (ops[i].value.operation)
+            {
+            case ECOT_Add:
+                number_stack_push(&stack, a + b);
+                break;
+            case ECOT_Sub:
+                number_stack_push(&stack, a - b);
+                break;
+            case ECOT_Mul:
+                number_stack_push(&stack, fixed_mul(a, b));
+                break;
+            case ECOT_Div:
+                number_stack_push(&stack, fixed_div(b, a));
+                break;
+            case ECOT_Mod:
+                number_stack_push(&stack, fixed_mod(b, a));
+                break;
+            }
+        }
+        break;
+        }
+    }
+    bool success = false;
+    *result = number_stack_pop(&stack, &success);
+    return success;
+}
+
 int main(struct KernelExports *kernel_exports)
 {
 
     // buffer for the entire input string
-    char input_buffer[255] = "2.2 * (9 - 8) + 89.98 ^ (2 * 9)";
+    char input_buffer[255] = "(3 % 2) * (2 + 3)";
     char *error_message = 0;
     char fixed_str_buffer[33];
 
     CalcExpression operation_array[100];
     int32_t operation_array_len = 0;
-    if (!parse_input(input_buffer, sizeof(input_buffer), &error_message, operation_array, &operation_array_len))
+    if (!parse_input(input_buffer, sizeof(input_buffer), &error_message, operation_array, 100, &operation_array_len))
     {
         kernel_exports->printf(error_message);
     }
@@ -458,7 +525,7 @@ int main(struct KernelExports *kernel_exports)
             switch (operation_array[i].type)
             {
             case ECET_Constant:
-                kernel_exports->printf("%s ", fixed_to_str(operation_array[i].value.constant_value, fixed_str_buffer));
+                kernel_exports->printf("%s ", fixed_to_str(operation_array[i].value.constant, fixed_str_buffer));
                 break;
             case ECET_Operator:
                 kernel_exports->printf("%c ", operator_to_char(operation_array[i].value.operation));
@@ -469,6 +536,15 @@ int main(struct KernelExports *kernel_exports)
             default:
                 kernel_exports->printf("??? ");
             }
+        }
+        fixed_t res;
+        if (!execute(operation_array, operation_array_len, &res, &error_message))
+        {
+            kernel_exports->printf(error_message);
+        }
+        else
+        {
+            kernel_exports->printf("\n%s = %s\n", input_buffer, fixed_to_str(res, fixed_str_buffer));
         }
     }
     kernel_exports->wait_for_keypress();
