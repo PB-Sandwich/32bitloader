@@ -3,15 +3,15 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-uint8_t* heap = NULL;
+uint8_t *heap = NULL;
 uint32_t heap_size = 0;
-BlockHeader* first_entry = NULL;
+BlockHeader *first_entry = NULL;
 
-void init_heap(uint8_t* buffer, uint32_t size)
+void init_heap(uint8_t *buffer, uint32_t size)
 {
     heap = buffer;
     heap_size = size;
-    first_entry = (BlockHeader*)heap;
+    first_entry = (BlockHeader *)heap;
     first_entry->size = heap_size - sizeof(BlockHeader);
     first_entry->free = 1;
     first_entry->next = NULL;
@@ -19,16 +19,16 @@ void init_heap(uint8_t* buffer, uint32_t size)
 }
 
 // size is the size the first block should be
-void split(BlockHeader* entry, uint32_t size)
+void split(BlockHeader *entry, uint32_t size)
 {
     uint32_t total_size = entry->size;
     uint32_t size2 = total_size - size - sizeof(BlockHeader);
-    BlockHeader* old_next = entry->next;
+    BlockHeader *old_next = entry->next;
 
     entry->size = size;
-    entry->next = (BlockHeader*)((uint8_t*)(entry + 1) + size);
+    entry->next = (BlockHeader *)((uint8_t *)(entry + 1) + size);
 
-    BlockHeader* next = entry->next;
+    BlockHeader *next = entry->next;
     next->size = size2;
     next->free = 1;
     next->prev = entry;
@@ -36,10 +36,11 @@ void split(BlockHeader* entry, uint32_t size)
 }
 
 // p for previouse; n for next
-BlockHeader* merge(BlockHeader* entry, uint8_t direction)
+BlockHeader *merge(BlockHeader *entry, uint8_t direction)
 {
-    BlockHeader* entry2 = NULL;
-    switch (direction) {
+    BlockHeader *entry2 = NULL;
+    switch (direction)
+    {
     case 'p':
         entry2 = entry->prev;
         entry2->size += entry->size + sizeof(BlockHeader);
@@ -59,107 +60,127 @@ BlockHeader* merge(BlockHeader* entry, uint8_t direction)
     }
 }
 
-void* malloc(uint32_t size)
+void *malloc(uint32_t size)
 {
-    BlockHeader* current = first_entry;
+    BlockHeader *current = first_entry;
 
-    while (current != NULL) {
-        if (current->free == 0) {
+    while (current != NULL)
+    {
+        if (current->free == 0)
+        {
             current = current->next;
             continue;
         }
-        if (current->size < size) {
+        if (current->size < size)
+        {
             current = current->next;
             continue;
         }
 
-        if (current->size > (size + sizeof(BlockHeader)) * 2) {
+        if (current->size > (size + sizeof(BlockHeader)) * 2)
+        {
             split(current, size);
             current->free = 0;
-            return (void*)(current + 1);
-        } else {
+            return (void *)(current + 1);
+        }
+        else
+        {
             current->free = 0;
-            return (void*)(current + 1);
+            return (void *)(current + 1);
         }
     }
 
     return NULL;
 }
 
-void* realloc(void* ptr, uint32_t size)
+void *realloc(void *ptr, uint32_t size)
 {
-    BlockHeader* entry = (BlockHeader*)ptr - 1;
+    BlockHeader *entry = (BlockHeader *)ptr - 1;
 
-    if ((int32_t)size <= (int32_t)entry->size - (int32_t)sizeof(BlockHeader) * 2) {
+    if ((int32_t)size <= (int32_t)entry->size - (int32_t)sizeof(BlockHeader) * 2)
+    {
         split(entry, size);
-        BlockHeader* next = entry->next;
-        if (next != NULL && next->next != NULL) {
-            if (next->free == 1 && next->next->free == 1) {
+        BlockHeader *next = entry->next;
+        if (next != NULL && next->next != NULL)
+        {
+            if (next->free == 1 && next->next->free == 1)
+            {
                 merge(next, 'n');
             }
         }
-        return (void*)(entry + 1);
-    } else if (size <= entry->size) {
-        return (void*)(entry + 1);
+        return (void *)(entry + 1);
+    }
+    else if (size <= entry->size)
+    {
+        return (void *)(entry + 1);
     }
 
-    if (entry->next != NULL && entry->next->free == 1) {
-        if (size < entry->size + entry->next->size + sizeof(BlockHeader)) {
+    if (entry->next != NULL && entry->next->free == 1)
+    {
+        if (size < entry->size + entry->next->size + sizeof(BlockHeader))
+        {
             entry = merge(entry, 'n');
             split(entry, size);
-            return (void*)(entry + 1);
+            return (void *)(entry + 1);
         }
-        if (entry->prev != NULL && entry->prev->free == 1) {
-            if (size < entry->size + entry->next->size + entry->prev->size + sizeof(BlockHeader) * 2) {
+        if (entry->prev != NULL && entry->prev->free == 1)
+        {
+            if (size < entry->size + entry->next->size + entry->prev->size + sizeof(BlockHeader) * 2)
+            {
                 uint32_t old_size = entry->size;
                 entry = merge(entry, 'n');
                 entry = merge(entry, 'p');
                 split(entry, size);
                 entry->free = 0;
-                memcpy((void*)(entry + 1), ptr, old_size);
-                return (void*)(entry + 1);
+                memcpy((void *)(entry + 1), ptr, old_size);
+                return (void *)(entry + 1);
             }
         }
     }
-    if (entry->prev != NULL && entry->prev->free == 1) {
-        if (size < entry->size + entry->prev->size + sizeof(BlockHeader)) {
+    if (entry->prev != NULL && entry->prev->free == 1)
+    {
+        if (size < entry->size + entry->prev->size + sizeof(BlockHeader))
+        {
             uint32_t old_size = entry->size;
             entry = merge(entry, 'p');
             split(entry, size);
             entry->free = 0;
-            memcpy((void*)(entry + 1), ptr, old_size);
-            return (void*)(entry + 1);
+            memcpy((void *)(entry + 1), ptr, old_size);
+            return (void *)(entry + 1);
         }
     }
 
-    uint8_t* new_ptr = (uint8_t*)malloc(size);
-    if (new_ptr == NULL) {
+    uint8_t *new_ptr = (uint8_t *)malloc(size);
+    if (new_ptr == NULL)
+    {
         return NULL;
     }
 
     memcpy(new_ptr, ptr, entry->size);
 
-    free((void*)(entry + 1));
+    free((void *)(entry + 1));
 
     return new_ptr;
 }
 
-void free(void* ptr)
+void free(void *ptr)
 {
-    if (ptr == NULL) {
+    if (ptr == NULL)
+    {
         return;
     }
 
-    BlockHeader* entry = (BlockHeader*)ptr - 1;
+    BlockHeader *entry = (BlockHeader *)ptr - 1;
     entry->free = 1;
-    while (entry->prev != NULL && entry->prev->free == 1) {
+    while (entry->prev != NULL && entry->prev->free == 1)
+    {
         entry = merge(entry, 'p');
     }
-    while (entry->next != NULL && entry->next->free == 1) {
+    while (entry->next != NULL && entry->next->free == 1)
+    {
         entry = merge(entry, 'n');
     }
 }
-
 
 int atoi(char *buffer)
 {
@@ -191,6 +212,49 @@ char *itoa(int value, char *buffer, int radix)
         buffer[1] = '\0';
         return buffer;
     }
+    unsigned v;
+    char temp[34] = {[33] = '\0'};
+    int32_t i = 0;
+    int sign = (value < 0 && radix == 10);
+    if (sign)
+    {
+        v = -value;
+    }
+    else
+    {
+        v = (unsigned)value;
+    }
+    for (; v != 0; i++, v /= radix)
+    {
+        int t = v % radix;
+        temp[i] = ((t < 10) ? (t + '0') : (t + 'A' - 10));
+    }
+    if (sign)
+    {
+        temp[i++] = '-';
+    }
+    int32_t len = i;
+
+    for (; i >= 0; i--)
+    {
+        buffer[i] = temp[len - i - 1];
+    }
+    buffer[len] = '\0';
+    return buffer;
+}
+
+char *int_to_str(int32_t value, char *buffer, int32_t radix, uint32_t *num_len)
+{
+    if (value == 0)
+    {
+        buffer[0] = '0';
+        buffer[1] = '\0';
+        if (num_len != NULL)
+        {
+            *num_len = 1;
+        }
+        return buffer;
+    }
     char temp[34] = {[33] = '\0'};
     int32_t i = 0;
     int sign = (value < 0);
@@ -214,5 +278,9 @@ char *itoa(int value, char *buffer, int radix)
         buffer[i] = temp[len - i - 1];
     }
     buffer[len] = '\0';
+    if (num_len != NULL)
+    {
+        *num_len = (uint32_t)len;
+    }
     return buffer;
 }

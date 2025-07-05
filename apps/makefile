@@ -5,6 +5,8 @@ BUILD_DIR := build/apps
 SOURCE_DIR := apps
 EXE_EXT := bin
 
+.PRECIOUS: $(BUILD_DIR)/%.elf
+
 APPS := $(DESTINATION_APP_DIR)/old_demo.$(EXE_EXT)\
 		$(DESTINATION_APP_DIR)/test_helper.$(EXE_EXT)\
 		$(DESTINATION_APP_DIR)/minesweeper.$(EXE_EXT)\
