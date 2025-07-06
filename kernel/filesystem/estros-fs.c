@@ -105,6 +105,31 @@ struct SuperBlock super_block = { 0 };
 #define FIRST_DATA_BLOCK (BLOCK_SIZE + BLOCK_BP_SIZE + INODE_BP_SIZE + INODE_SIZE) / BLOCK_SIZE + 1)
 
 VFSFile* harddrive = NULL;
+uint32_t loaded_block = 0;
+uint8_t* block_data = NULL;
+
+uint8_t harddrive_read_byte(uint32_t blocks[14], uint32_t pos)
+{
+    if (block_data == NULL) {
+        block_data = (uint8_t*)malloc(BLOCK_SIZE);
+        if (block_data == NULL) {
+            return -1;
+        }
+    }
+
+    uint32_t block_n = pos / BLOCK_SIZE;
+    if (block_n > 14) {
+        return -1;
+    }
+
+    if (blocks[block_n] != loaded_block) {
+        vfs_seek(harddrive, blocks[block_n] * BLOCK_SIZE, VFS_BEG);
+        vfs_read(harddrive, block_data, BLOCK_SIZE);
+        loaded_block = blocks[block_n];
+    }
+    pos = pos - block_n * BLOCK_SIZE;
+    return block_data[pos];
+}
 
 void fs_set_harddrive(char* path)
 {
@@ -141,14 +166,13 @@ void fs_close(VFSFile* file)
 
 void fs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
-    uint8_t block[BLOCK_SIZE];
-
-    vfs_seek(harddrive, (((uint32_t*)file->inode->private_data)[0]) * BLOCK_SIZE, VFS_BEG);
-
-    vfs_read(harddrive, block, BLOCK_SIZE);
-    memcpy(buffer, block, buffer_size);
-
-    file->position += buffer_size;
+    if (buffer_size + file->position > file->inode->size) {
+        buffer_size = file->inode->size - file->position;
+    }
+    for (uint32_t i = 0; i < buffer_size; i++) {
+        ((uint8_t*)buffer)[i] = harddrive_read_byte(file->inode->private_data, file->position++);
+    }
+    return;
 }
 void fs_write(VFSFile* file, void* buffer, uint32_t buffer_size) { }
 void fs_ioctl(VFSFile* file, uint32_t command, uint32_t arg) { }
@@ -190,13 +214,14 @@ struct DirectoryEntry* fetch_inode_directory(struct Inode inode)
     if (inode.size == 0) {
         return NULL;
     }
-    struct DirectoryEntry* entries = (struct DirectoryEntry*)malloc((inode.size / 512 + 1) * 512);
+    struct DirectoryEntry* entries = (struct DirectoryEntry*)malloc(inode.size + sizeof(struct DirectoryEntry));
     if (entries == NULL) {
         return NULL;
     }
-    memset(entries, 0, (inode.size / 512 + 1) * 512);
-    vfs_seek(harddrive, inode.blocks[0] * BLOCK_SIZE, VFS_BEG);
-    vfs_read(harddrive, entries, (inode.size / 512 + 1) * 512);
+    memset(entries, 0, inode.size + sizeof(struct DirectoryEntry));
+    for (uint32_t i = 0; i < inode.size; i++) {
+        ((uint8_t*)entries)[i] = harddrive_read_byte(inode.blocks, i);
+    }
     return entries;
 }
 
