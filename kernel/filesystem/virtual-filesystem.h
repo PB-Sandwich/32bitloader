@@ -10,6 +10,7 @@ typedef enum {
 } VFSWhence;
 
 typedef enum {
+    VFS_ERROR = 0,
     VFS_REGULAR_FILE = 1,
     VFS_BLOCK_DEVICE = 2,
     VFS_CHARACTER_DEVICE = 3,
@@ -42,27 +43,35 @@ typedef struct {
 } VFSFile;
 
 typedef struct {
-    VFSIndexNode* inode;
-    void* vfs_directory;
-    char* name;
+    char* path;
 } VFSDirectoryEntry;
 
 typedef struct {
+    VFSIndexNode inode;
     VFSDirectoryEntry* entries;
     uint32_t entries_length;
 } VFSDirectory;
 
 typedef struct {
     int (*create_inode)(char* path, VFSFileType type);
-    VFSIndexNode* (*get_inode)(char* path);
-    VFSDirectory* (*get_directory_entries)(char* path);
-    int (*write_directory_entries)(VFSDirectory vfs_directory);
+    VFSIndexNode (*get_inode)(char* path);
+    VFSDirectory* (*get_directory)(char* path);
+    void (*free_inode_data)(VFSIndexNode inode);
 } VFSDriverOperations;
 
 /*
  *
+ *  All driver functions should NOT modify the VFSIndexNode.number_of_refrences variable.
  *  Open and close will keep track of refrences to each index node.
- *  The VFS expects that a inode will be safe to remove after calling flush
+ *  The VFS will auto remove inodes no longer in use.
+ *  The VFS expects that a file will be safe to remove after calling file_operations.flush().
+ *  The VFS expects that an inode will be safe to remove after calling free_inode_data.
+ *  The filesystem drivers are expected to set the file operations when get_inode is called.
+ *
+ *  create_inode should return 0 on success
+ *  get_inode should return an index node with a type of VFS_ERROR on fail
+ *  free_inode_data should free just the private data of the inode that the driver allocated
+ *  get_directory should return NULL on fail
  *
  */
 

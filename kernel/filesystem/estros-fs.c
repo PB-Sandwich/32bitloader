@@ -6,11 +6,12 @@
 
 // typedef enum {
 //     VFS_BEG = 1,
-//     VFS_CuR = 2,
+//     VFS_CUR = 2,
 //     VFS_END = 3,
 // } VFSWhence;
 //
 // typedef enum {
+//     VFS_ERROR = 0,
 //     VFS_REGULAR_FILE = 1,
 //     VFS_BLOCK_DEVICE = 2,
 //     VFS_CHARACTER_DEVICE = 3,
@@ -43,21 +44,20 @@
 // } VFSFile;
 //
 // typedef struct {
-//     VFSIndexNode* inode;
-//     void* vfs_directory;
-//     char* name;
+//     char* path;
 // } VFSDirectoryEntry;
 //
 // typedef struct {
+//     VFSIndexNode inode;
 //     VFSDirectoryEntry* entries;
 //     uint32_t entries_length;
 // } VFSDirectory;
 //
 // typedef struct {
 //     int (*create_inode)(char* path, VFSFileType type);
-//     VFSIndexNode* (*get_inode)(char* path);
-//     VFSDirectory* (*get_directory_entries)(char* path);
-//     int (*write_directory_entries)(VFSDirectory vfs_directory);
+//     VFSIndexNode (*get_inode)(char* path);
+//     VFSDirectory* (*get_directory)(char* path);
+//     void (*free_inode_data)(VFSIndexNode inode);
 // } VFSDriverOperations;
 
 typedef struct {
@@ -221,7 +221,9 @@ struct Inode resolve_inode(char* path)
         for (int i = 0; i < strlen(path); i++) {
             if (path[i] == '/') {
                 offset = i;
-                path[i] = '\0';
+                if (offset != 0) {
+                    path[i] = '\0';
+                }
                 break;
             }
         }
@@ -241,7 +243,9 @@ struct Inode resolve_inode(char* path)
             entry = (struct DirectoryEntry*)((uint8_t*)entry + entry->entry_length);
         }
         inode = fetch_inode(entry->inode_number);
-        path[offset] = '/';
+        if (offset != 0) {
+            path[offset] = '/';
+        }
         path += offset + 1;
 
         if (offset == 0) { // found
@@ -254,42 +258,42 @@ struct Inode resolve_inode(char* path)
     return inode;
 }
 
-VFSIndexNode* fstovfs(struct Inode inode)
+VFSIndexNode fstovfs(struct Inode inode)
 {
-    VFSIndexNode* vfs_inode = (VFSIndexNode*)malloc(sizeof(VFSIndexNode));
-    if (vfs_inode == NULL) {
-        return NULL;
-    }
+    VFSIndexNode vfs_inode = {
+        .type = inode.type,
+        .size = inode.size,
+        .private_data = (uint32_t*)malloc(sizeof(uint32_t) * 14),
+        .file_operations = get_fs_file_operations(),
+    };
 
-    vfs_inode->type = inode.type;
-    vfs_inode->size = inode.size;
-    vfs_inode->private_data = (uint32_t*)malloc(sizeof(uint32_t) * 14);
-    vfs_inode->file_operations = get_fs_file_operations();
-    if (vfs_inode->private_data == NULL) {
-        free(vfs_inode);
-        return NULL;
+    if (vfs_inode.private_data == NULL) {
+        vfs_inode.type = VFS_ERROR;
+        return vfs_inode;
     }
-    memcpy(vfs_inode->private_data, inode.blocks, sizeof(uint32_t) * 14);
+    memcpy(vfs_inode.private_data, inode.blocks, sizeof(uint32_t) * 14);
     return vfs_inode;
 }
 
 int create_inode(char* path, VFSFileType type) { }
-VFSIndexNode* get_inode(char* path)
+VFSIndexNode get_inode(char* path)
 {
     struct Inode inode = resolve_inode(path);
     if (inode.type == 0) {
-        return NULL;
+        VFSIndexNode vfs_inode = { 0 };
+        vfs_inode.type = VFS_ERROR;
+        return vfs_inode;
     }
 
-    VFSIndexNode* vfs_inode = fstovfs(inode);
+    VFSIndexNode vfs_inode = fstovfs(inode);
 
     return vfs_inode;
 }
 
-VFSDirectory* get_directory_entries(char* path)
+VFSDirectory* get_directory(char* path)
 {
     struct Inode inode = resolve_inode(path);
-    if (inode.type == 0) {
+    if (inode.type != DIRECTORY) {
         return NULL;
     }
 
@@ -312,37 +316,50 @@ VFSDirectory* get_directory_entries(char* path)
     vfs_dir->entries_length = 0;
 
     while (entry->entry_length != 0) {
-        VFSDirectoryEntry vfs_entry = {
-            .inode = fstovfs(fetch_inode(entry->inode_number)),
-            .name = (char*)malloc(entry->name_length + 1),
-            .vfs_directory = NULL,
-        };
-        strncpy(vfs_entry.name, entry->name, entry->name_length);
-        vfs_entry.name[entry->name_length] = '\0';
+        VFSDirectoryEntry vfs_entry;
+        if (strlen(path) == 1) {
+            vfs_entry.path = (char*)malloc(strlen(path) + entry->name_length + 1);
+            strncpy(vfs_entry.path, path, strlen(path));
+            strncpy(vfs_entry.path + strlen(path), entry->name, entry->name_length);
+            vfs_entry.path[strlen(path) + entry->name_length] = '\0';
+        } else {
+            vfs_entry.path = (char*)malloc(strlen(path) + 1 + entry->name_length + 1);
+            strncpy(vfs_entry.path, path, strlen(path));
+            vfs_entry.path[strlen(path)] = '/';
+            strncpy(vfs_entry.path + strlen(path) + 1, entry->name, entry->name_length);
+            vfs_entry.path[strlen(path) + entry->name_length + 1] = '\0';
+        }
 
-        vfs_dir->entries = (VFSDirectoryEntry*)realloc(vfs_dir->entries, sizeof(VFSDirectoryEntry) * (vfs_dir->entries_length + 1));
-        if (vfs_dir->entries == NULL) {
-            free(vfs_entry.inode);
-            free(vfs_entry.name);
+        void* temp = (VFSDirectoryEntry*)realloc(vfs_dir->entries, sizeof(VFSDirectoryEntry) * (vfs_dir->entries_length + 1));
+        if (temp == NULL) {
+            free(temp);
+            free(vfs_entry.path);
+            free(vfs_dir->entries);
             free(vfs_dir);
             return NULL;
         }
+        vfs_dir->entries = temp;
         vfs_dir->entries[vfs_dir->entries_length] = vfs_entry;
         vfs_dir->entries_length++;
         entry = (struct DirectoryEntry*)((uint8_t*)entry + entry->entry_length);
     }
+    free(base_entry);
     return vfs_dir;
 }
 
-int write_directory_entries(VFSDirectory vfs_directory) { }
+void free_inode_data(VFSIndexNode inode)
+{
+    free(inode.private_data);
+    return;
+}
 
 VFSDriverOperations get_fs_driver_operations()
 {
     VFSDriverOperations dops = {
         .create_inode = create_inode,
         .get_inode = get_inode,
-        .write_directory_entries = write_directory_entries,
-        .get_directory_entries = get_directory_entries,
+        .get_directory = get_directory,
+        .free_inode_data = free_inode_data,
     };
     return dops;
 }

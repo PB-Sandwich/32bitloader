@@ -202,18 +202,15 @@ void kernel_entry(struct GDT* gdt)
         ;
 }
 
-VFSIndexNode* ex_get_inode(char* path)
-{
-    return NULL;
-}
-
 int main()
 {
     clear();
 
     init_heap((uint8_t*)0x210000, 0x10000);
 
-    vfs_create_device_file("/hdd", get_hdd_file_operations(), VFS_BLOCK_DEVICE);
+    vfs_init();
+
+    vfs_create_device_file_no_checks("/hdd", get_hdd_file_operations(), VFS_BLOCK_DEVICE);
 
     fs_set_harddrive("/hdd");
 
@@ -229,13 +226,13 @@ int main()
     vfs_read(file, buf, 512);
     printf("Contents of file:\n%s\n", buf);
 
-    VFSDirectory* dir = vfs_open_directory("/testdir/");
+    VFSDirectory* dir = vfs_open_directory("/testdir");
     if (dir == NULL) {
         printf("Unable to open directory\n");
         return 0;
     }
     for (int i = 0; i < dir->entries_length; i++) {
-        printf("Entry: %s\n", dir->entries[i].name);
+        printf("Entry: %s\n", dir->entries[i].path);
     }
 
     return 0;

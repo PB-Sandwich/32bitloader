@@ -93,7 +93,7 @@ start_protected_mode:
     mov esp, ebp
 
     cld
-    mov ecx, 50 * 512 ; 30 cd sectors
+    mov ecx, 70 * 512 ; 30 cd sectors
     mov esi, TEMP_KERNEL_LOCATION
     mov edi, 0x100000
     rep movsb

@@ -107,5 +107,5 @@ char* strchr(const char* str, char c)
             return (char*)i;
         }
     }
-    return (char*)str;
+    return NULL;
 }
