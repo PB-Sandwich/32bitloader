@@ -3,7 +3,6 @@
 
 #include <filesystem/virtual-filesystem.h>
 
-int create_inode(char* path, VFSFileType type);
-VFSIndexNode* get_inode(char* path);
-VFSDirectory* get_directory_entries(char* path);
-int write_directory_entries(VFSDirectory vfs_directory);
+void fs_set_harddrive(char* path);
+VFSFileOperations get_fs_file_operations();
+VFSDriverOperations get_fs_driver_operations();

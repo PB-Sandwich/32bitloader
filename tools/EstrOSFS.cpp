@@ -24,23 +24,23 @@ struct Inode {
     uint32_t type = 0;
     uint32_t size = 0;
     uint32_t blocks[14] {};
-};
+} __attribute__((packed));
 
 struct DirectoryEntry {
     uint32_t inode_number;
     uint32_t entry_length;
     uint32_t name_length;
     string name;
-};
+} __attribute__((packed));
 
 struct SuperBlock {
     uint32_t n_blocks;
     uint32_t max_inodes;
     uint32_t root_inode;
-};
+} __attribute__((packed));
 
 constexpr uint32_t BLOCK_SIZE = 1024;
-constexpr uint32_t INODE_SIZE = 128;
+constexpr uint32_t INODE_SIZE = 64;
 constexpr uint32_t MAX_INODES = 8192;
 constexpr uint32_t INODE_SPACE = MAX_INODES * INODE_SIZE;
 constexpr uint32_t SUPER_BLOCK_OFFSET = 0x10000;
@@ -106,6 +106,8 @@ uint32_t pack_file(path file, vector<EstrOSFS::Inode>& inodes, ofstream& output_
     fill_to_block(output_file);
 
     cout << "Packed file " << file << " : " << size << " bytes\n";
+    cout << "block[0]: " << blocks[0] << '\n';
+    cout << "inode number: " << inodes.size() - 1 << '\n';
 
     return inodes.size() - 1;
 }
@@ -129,7 +131,7 @@ uint32_t pack_directory(path directory, vector<EstrOSFS::Inode>& inodes, ofstrea
         }
         string name = entry.path().filename();
         entries.push_back({ .inode_number = child_inode_number,
-            .entry_length = (uint32_t)(sizeof(EstrOSFS::DirectoryEntry) + name.length()),
+            .entry_length = (uint32_t)(sizeof(EstrOSFS::DirectoryEntry) + name.length() - sizeof(string) - 4),
             .name_length = (uint32_t)name.length(),
             .name = name });
     }
@@ -137,7 +139,10 @@ uint32_t pack_directory(path directory, vector<EstrOSFS::Inode>& inodes, ofstrea
     uint32_t blocks[14] = { 0 };
     blocks[0] = output_file.tellp() / EstrOSFS::BLOCK_SIZE;
 
-    output_file.write((char*)entries.begin().base(), entries.size() * sizeof(EstrOSFS::DirectoryEntry));
+    for (int i = 0; i < entries.size(); i++) {
+        output_file.write((char*)&entries[i], sizeof(EstrOSFS::DirectoryEntry) - sizeof(string) - 4);
+        output_file.write(entries[i].name.c_str(), entries[i].name_length);
+    }
 
     for (int i = 1;
         i < entries.size() * sizeof(EstrOSFS::DirectoryEntry) / EstrOSFS::BLOCK_SIZE && i < 11;
@@ -157,6 +162,8 @@ uint32_t pack_directory(path directory, vector<EstrOSFS::Inode>& inodes, ofstrea
     fill_to_block(output_file);
 
     cout << "Packed directory: " << directory << " : " << entries.size() << " entries\n";
+    cout << "block[0]: " << blocks[0] << '\n';
+    cout << "inode number: " << inode_number << '\n';
 
     return inode_number;
 }
@@ -223,7 +230,8 @@ int pack(vector<string> args)
     output_file.write((char*)&last_bp, 1);
 
     output_file.seekp(((EstrOSFS::SUPER_BLOCK_OFFSET + EstrOSFS::BLOCK_SIZE + EstrOSFS::BLOCK_BP_SIZE + EstrOSFS::INODE_BP_SIZE) / EstrOSFS::BLOCK_SIZE + 1) * EstrOSFS::BLOCK_SIZE, ios::beg);
-    output_file.write((char*)inodes.begin().base(), sizeof(EstrOSFS::Inode) * inodes.size());
+    output_file.write((char*)inodes.begin().base(), EstrOSFS::INODE_SIZE * inodes.size());
+    cout << "Wrote " << inodes.size() << " inodes to the filesystem image\n";
 
     output_file.close();
 

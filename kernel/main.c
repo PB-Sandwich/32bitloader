@@ -1,5 +1,7 @@
+#include <filesystem/estros-fs.h>
 #include <filesystem/virtual-filesystem.h>
 #include <harddrive/ata.h>
+#include <harddrive/hdd.h>
 #include <heap.h>
 #include <idt.h>
 #include <inboutb.h>
@@ -200,20 +202,41 @@ void kernel_entry(struct GDT* gdt)
         ;
 }
 
+VFSIndexNode* ex_get_inode(char* path)
+{
+    return NULL;
+}
+
 int main()
 {
     clear();
 
     init_heap((uint8_t*)0x210000, 0x10000);
 
-    VFSDriverOperations dops = { 0 };
-    VFSFileOperations fops = { 0 };
-    vfs_init(dops, fops);
+    vfs_create_device_file("/hdd", get_hdd_file_operations(), VFS_BLOCK_DEVICE);
 
-    vfs_create_device_file("/dev/hdd", fops, VFS_BLOCK_DEVICE);
-    VFSFile *file = vfs_open_file("/dev/hdd");
+    fs_set_harddrive("/hdd");
 
-    printf("%d\n", file->inode->type);
+    vfs_set_driver(get_fs_driver_operations());
+
+    VFSFile* file = vfs_open_file("/testdir/test.txt");
+    if (file == NULL) {
+        printf("Unable to open file\n");
+        return 0;
+    }
+
+    uint8_t buf[512];
+    vfs_read(file, buf, 512);
+    printf("Contents of file:\n%s\n", buf);
+
+    VFSDirectory* dir = vfs_open_directory("/testdir/");
+    if (dir == NULL) {
+        printf("Unable to open directory\n");
+        return 0;
+    }
+    for (int i = 0; i < dir->entries_length; i++) {
+        printf("Entry: %s\n", dir->entries[i].name);
+    }
 
     return 0;
 }

@@ -16,5 +16,6 @@ void init_heap(uint8_t* heap_buffer, uint32_t heap_size);
 void dump_heap();
 
 void* malloc(uint32_t size);
+void* calloc(uint32_t n, uint32_t size);
 void* realloc(void* ptr, uint32_t size);
 void free(void* ptr);

@@ -1,48 +1,56 @@
 #include "virtual-filesystem.h"
+#include <cstdint>
+#include <hashmap/hashmap.h>
 #include <heap.h>
 #include <memutils.h>
-#include <stdlib.h>
+#include <print.h>
 
-VFSDirectory root = { 0 };
-VFSDriverOperations dops = { 0 };
-VFSFileOperations default_fops = { 0 };
-
-int vfs_init(VFSDriverOperations driver_operations, VFSFileOperations default_file_operations)
+void* null_function()
 {
-    dops = driver_operations;
-    default_fops = default_file_operations;
-    root.entries_length++;
-    root.entries = (VFSDirectoryEntry*)malloc(sizeof(VFSDirectoryEntry));
-    if (root.entries == NULL) {
+    return NULL;
+}
+
+VFSDriverOperations dops = {
+    .get_directory_entries = (void*)null_function,
+    .get_inode = (void*)null_function,
+    .write_directory_entries = (void*)null_function,
+    .create_inode = (void*)null_function
+};
+VFSIndexNode* inodes = NULL;
+uint32_t inodes_size = 0;
+struct hashmap_s hashmap;
+
+int vfs_init()
+{
+    if (hashmap_create(2, &hashmap) != 0) {
         return 1;
     }
-    char* name = "dev";
-    root.entries[0].name = (char*)malloc(strlen(name));
-    strcpy(root.entries[0].name, name);
-    root.entries[0].inode = NULL;
-    root.entries->vfs_directory = (VFSDirectory*)malloc(sizeof(VFSDirectory));
-    if (root.entries->vfs_directory == NULL) {
+    inodes = (VFSIndexNode*)malloc(sizeof(VFSIndexNode));
+    if (inodes == NULL) {
+        hashmap_destroy(&hashmap);
         return 1;
     }
     return 0;
 }
 
-VFSIndexNode* get_virtual_inode(char* path, VFSDirectory* dir)
+void vfs_set_driver(VFSDriverOperations driver_operations)
 {
-    while (*path == '/') {
-        path++;
+    dops = driver_operations;
+    return;
+}
+
+struct virtual_inode_ret {
+    char* path;
+    VFSIndexNode* ptr;
+};
+
+int get_virtual_inode(void* const context, struct hashmap_element_s* const e)
+{
+    if (strcmp(e->key, ((struct virtual_inode_ret*)context)->path) == 0) {
+        ((struct virtual_inode_ret*)context)->ptr = e->data;
+        return 0;
     }
-    for (int i = 0; i < dir->entries_length; i++) {
-        if (strstr(path, dir->entries[i].name) == 0) {
-            uint32_t sublen = strchr(path, '/') - path;
-            if (sublen == 0) {
-                return dir->entries[i].inode;
-            }
-            path = path + sublen;
-            return get_virtual_inode(path, dir->entries[i].vfs_directory);
-        }
-    }
-    return NULL;
+    return 1;
 }
 
 void free_directory(VFSDirectory* dir)
@@ -75,7 +83,10 @@ VFSDirectory* load_directories(char* path)
     }
     VFSDirectory* dir = &root;
     while (strchr(path + offset, '/') - path + offset) {
-        strncpy(name, path + offset, strchr(path + offset, '/') - path + offset);
+        if (strchr(path + offset, '/') - path + offset == strlen(path + offset)) {
+            break;
+        }
+        strncpy(name, path + offset, strchr(path + offset, '/') - path + offset - 1);
         name[strchr(path, '/') - path] = '\0';
         strncpy(cur_path, path, offset - strlen(name));
 
@@ -118,13 +129,21 @@ VFSDirectory* load_directories(char* path)
             }
             dir->entries[dir->entries_length - 1].vfs_directory = subdir;
             dir->entries[dir->entries_length - 1].inode = subdir_inode;
-            dir->entries[dir->entries_length - 1].name = (char*)malloc(strlen(name));
+            if (strlen(name) != 0) {
+                dir->entries[dir->entries_length - 1].name = (char*)malloc(strlen(name));
+            } else {
+                dir->entries[dir->entries_length - 1].name = (char*)malloc(1);
+            }
             if (dir->entries[dir->entries_length - 1].name == NULL) {
                 free(name);
                 free(cur_path);
                 return NULL;
             }
-            strcpy(dir->entries[dir->entries_length - 1].name, name);
+            if (strlen(name) != 0) {
+                strcpy(dir->entries[dir->entries_length - 1].name, name);
+            } else {
+                *dir->entries[dir->entries_length - 1].name = '\0';
+            }
             dir = subdir;
         }
     }
@@ -163,14 +182,14 @@ int vfs_create_device_file(char* path, VFSFileOperations fops, VFSFileType type)
     if (get_virtual_inode(path, &root) != NULL) {
         return 1; // already exists in virtual filesystem
     };
-    // VFSIndexNode* inode = dops.get_inode(path);
-    // if (inode != NULL) {
-    //     return 1; // already exists in physical filesystem
-    // }
-    // free(inode);
+    VFSIndexNode* inode = dops.get_inode(path);
+    if (inode != NULL) {
+        return 1; // already exists in physical filesystem
+    }
+    free(inode);
 
     uint32_t offset = 0;
-    for (uint32_t i = strlen(path) - 1; i > 0; i--) {
+    for (uint32_t i = strlen(path) - 1; i >= 0; i--) {
         if (path[i] == '/') {
             path[i] = '\0';
             offset = i;
@@ -182,6 +201,7 @@ int vfs_create_device_file(char* path, VFSFileOperations fops, VFSFileType type)
     if (directory == NULL) {
         return 1; // directory does not exist
     }
+    path[offset] = '/';
 
     directory->entries_length++;
     if (directory->entries != NULL) {
@@ -193,51 +213,82 @@ int vfs_create_device_file(char* path, VFSFileOperations fops, VFSFileType type)
         return 1;
     }
 
-    uint32_t name_length = 0;
-    uint32_t name_offset = 0;
-    for (int i = strlen(path) - 1; i > 0; i--) {
-        if (path[i] == '/') {
-            name_length = strlen(path) - i;
-            name_offset = i;
-            break;
-        }
-    }
+    path += offset + 1;
+    uint32_t name_length = strlen(path);
+
     VFSDirectoryEntry entry = {
         .inode = (VFSIndexNode*)malloc(sizeof(VFSIndexNode)),
         .vfs_directory = NULL,
-        .name = (char*)malloc(name_length),
+        .name = (char*)malloc(name_length + 1),
     };
     entry.inode->type = type;
     entry.inode->file_operations = fops;
-    strncpy(entry.name, path + name_offset, name_length);
+    strncpy(entry.name, path, name_length + 1);
+    entry.name[name_length] = '\0';
+
+    directory->entries[directory->entries_length - 1] = entry;
 
     return 0;
 }
 
 int vfs_create_directory(char* path);
 
-VFSDirectory* vfs_open_directory(char* path);
-void vfs_close_directory(VFSDirectory* vfs_directory);
+VFSDirectory* vfs_open_directory(char* path)
+{
+    VFSDirectory* dir = load_directories(path);
+    return dir;
+}
+
+void vfs_close_directory(VFSDirectory* vfs_directory)
+{
+    free_directory(vfs_directory);
+}
 
 // returns NULL on fail
 VFSFile* vfs_open_file(char* path)
 {
     VFSIndexNode* inode = get_virtual_inode(path, &root);
     if (inode == NULL) {
-        // inode = dops.get_inode(path);
-        // if (inode == NULL) {
-        //     return NULL;
-        // }
+        inode = dops.get_inode(path);
+        if (inode == NULL) {
+            return NULL;
+        }
     }
-    VFSFile* file = (VFSFile*)malloc(sizeof(VFSFile));
-    if (file == NULL) {
-        return NULL;
-    }
-    file->inode = inode;
-    file->private_data = NULL;
-    file->private_data_size = 0;
-    file->position = 0;
+    VFSFile* file = inode->file_operations.open(inode);
     return file;
 }
 
-void vfs_close_file(VFSFile* file);
+void vfs_close_file(VFSFile* file)
+{
+    file->inode->file_operations.close(file);
+}
+
+void vfs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
+{
+    file->inode->file_operations.read(file, buffer, buffer_size);
+}
+
+void vfs_write(VFSFile* file, void* buffer, uint32_t buffer_size)
+{
+    file->inode->file_operations.write(file, buffer, buffer_size);
+}
+
+void vfs_ioctl(VFSFile* file, uint32_t command, uint32_t arg)
+{
+    file->inode->file_operations.ioctl(file, command, arg);
+}
+
+void vfs_seek(VFSFile* file, uint32_t offset, uint32_t whence)
+{
+    file->inode->file_operations.seek(file, offset, whence);
+}
+
+uint32_t vfs_tell(VFSFile* file)
+{
+    return file->inode->file_operations.tell(file);
+}
+
+void vfs_flush(VFSFile* file)
+{
+    file->inode->file_operations.flush(file);
+}

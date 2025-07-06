@@ -23,6 +23,7 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/harddrive/hdd.c.o \
 		$(BUILD_DIR)/kernel/keyboard/input.c.o \
 		$(BUILD_DIR)/kernel/filesystem/virtual-filesystem.c.o \
+		$(BUILD_DIR)/kernel/filesystem/estros-fs.c.o \
 		$(BUILD_DIR)/kernel/interrupts/error_handlers.int.c.o \
 		$(BUILD_DIR)/kernel/interrupts/irq_handlers.int.c.o \
 		$(BUILD_DIR)/kernel/interrupts/system_calls.c.o \

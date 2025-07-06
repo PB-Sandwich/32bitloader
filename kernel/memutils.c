@@ -81,7 +81,7 @@ char* strstr(const char* str, const char* substr)
 {
     int len = strlen(str);
     int sublen = strlen(substr);
-    const char* ret = str;
+    const char* ret = NULL;
     for (int i = 0; i <= len - sublen; i++) {
         if (strcmp(&str[i], substr) == 0) {
             ret = &str[i];

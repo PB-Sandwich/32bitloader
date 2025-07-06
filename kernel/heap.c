@@ -90,6 +90,14 @@ void* malloc(uint32_t size)
     return NULL;
 }
 
+void* calloc(uint32_t n, uint32_t size)
+{
+    if (n > UINT32_MAX / size) {
+        return NULL;
+    }
+    return malloc(n * size);
+}
+
 void* realloc(void* ptr, uint32_t size)
 {
     BlockHeader* entry = (BlockHeader*)ptr - 1;
