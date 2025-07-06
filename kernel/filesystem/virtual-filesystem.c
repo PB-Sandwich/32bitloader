@@ -22,7 +22,7 @@ struct hashmap_s hashmap;
 
 int vfs_init()
 {
-    if (hashmap_create(2, &hashmap) != 0) {
+    if (hashmap_create(16, &hashmap) != 0) {
         return 1;
     }
     inodes = (VFSIndexNode*)malloc(sizeof(VFSIndexNode));
@@ -39,7 +39,7 @@ void vfs_set_driver(VFSDriverOperations driver_operations)
     return;
 }
 
-VFSIndexNode* instert_new_inode(VFSIndexNode inode, char* path)
+VFSIndexNode* insert_new_inode(VFSIndexNode inode, char* path)
 {
     void* temp = realloc(inodes, sizeof(VFSIndexNode) * (inodes_size + 1));
     if (temp == NULL) {
@@ -126,7 +126,7 @@ int vfs_create_device_file_no_checks(char* path, VFSFileOperations fops, VFSFile
         .private_data = NULL,
         .number_of_references = 0,
     };
-    if (instert_new_inode(inode, path) == NULL) {
+    if (insert_new_inode(inode, path) == NULL) {
         return 1;
     }
     return 0;
@@ -157,6 +157,16 @@ int hash_dir_iter(void* const context, struct hashmap_element_s* const e)
             return 0;
         }
 
+        if (rest[0] != '/') {
+            return 0;
+        }
+
+        for (uint32_t i = 0; i < dir->entries_length; i++) {
+            if (strcmp((char*)e->key, dir->entries[i].path) == 0) {
+                return 0;
+            }
+        }
+
         void* temp = realloc(dir->entries, sizeof(VFSDirectoryEntry) * (dir->entries_length + 1));
         if (temp == NULL) {
             return 1;
@@ -181,14 +191,22 @@ int hash_dir_iter(void* const context, struct hashmap_element_s* const e)
 
 VFSDirectory* vfs_open_directory(char* path)
 {
-    VFSDirectory* dir = dops.get_directory(path);
+    VFSIndexNode* virtual_inode = hashmap_get(&hashmap, path, strlen(path));
+
+    if (virtual_inode == NULL) {
+        VFSIndexNode physical_inode = dops.get_inode(path);
+        if (physical_inode.type == VFS_ERROR) {
+            dops.free_inode_data(physical_inode);
+            return NULL;
+        }
+        virtual_inode = insert_new_inode(physical_inode, path);
+    }
+
+    VFSDirectory* dir = dops.get_directory(path, virtual_inode);
     if (dir == NULL) {
         return NULL;
     }
-    dir->inode.number_of_references++;
-    if (instert_new_inode(dir->inode, path) == NULL) {
-        return NULL;
-    }
+    dir->inode->number_of_references++;
     struct hash_dir_iter_t iter_value = {
         .path = path,
         .dir = dir,
@@ -202,7 +220,7 @@ VFSDirectory* vfs_open_directory(char* path)
 
 void vfs_close_directory(VFSDirectory* vfs_directory)
 {
-    vfs_directory->inode.number_of_references--;
+    vfs_directory->inode->number_of_references--;
     free_directory(vfs_directory);
 }
 
@@ -217,7 +235,7 @@ VFSFile* vfs_open_file(char* path)
             dops.free_inode_data(physical_inode);
             return NULL;
         }
-        virtual_inode = instert_new_inode(physical_inode, path);
+        virtual_inode = insert_new_inode(physical_inode, path);
     }
     VFSFile* file = virtual_inode->file_operations.open(virtual_inode);
     virtual_inode->number_of_references++;

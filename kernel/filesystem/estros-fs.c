@@ -3,6 +3,7 @@
 #include <harddrive/hdd.h>
 #include <heap.h>
 #include <memutils.h>
+#include <stdlib.h>
 
 // typedef enum {
 //     VFS_BEG = 1,
@@ -60,10 +61,6 @@
 //     void (*free_inode_data)(VFSIndexNode inode);
 // } VFSDriverOperations;
 
-typedef struct {
-    uint32_t blocks[14];
-} IndexNode;
-
 enum BitMap {
     FREE = 0,
     USED = 1,
@@ -76,8 +73,8 @@ enum InodeType {
 
 struct Inode {
     uint32_t type;
-    uint32_t size;
-    uint32_t blocks[14];
+    uint64_t size;
+    uint32_t blocks[13];
 };
 
 struct DirectoryEntry {
@@ -88,6 +85,7 @@ struct DirectoryEntry {
 };
 
 struct SuperBlock {
+    uint64_t size_bytes;
     uint32_t n_blocks;
     uint32_t max_inodes;
     uint32_t root_inode;
@@ -108,7 +106,7 @@ VFSFile* harddrive = NULL;
 uint32_t loaded_block = 0;
 uint8_t* block_data = NULL;
 
-uint8_t harddrive_read_byte(uint32_t blocks[14], uint32_t pos)
+uint8_t harddrive_read_byte(uint32_t blocks[13], uint32_t pos)
 {
     if (block_data == NULL) {
         block_data = (uint8_t*)malloc(BLOCK_SIZE);
@@ -118,7 +116,7 @@ uint8_t harddrive_read_byte(uint32_t blocks[14], uint32_t pos)
     }
 
     uint32_t block_n = pos / BLOCK_SIZE;
-    if (block_n > 14) {
+    if (block_n > 13) {
         return -1;
     }
 
@@ -151,7 +149,6 @@ VFSFile* fs_open(VFSIndexNode* inode)
     file->private_data = NULL;
     file->private_data_size = 0;
     file->position = 0;
-    inode->number_of_references++;
     return file;
 }
 
@@ -160,7 +157,6 @@ void fs_close(VFSFile* file)
     if (file->private_data != NULL) {
         free(file->private_data);
     }
-    file->inode->number_of_references--;
     free(file);
 }
 
@@ -260,7 +256,7 @@ struct Inode resolve_inode(char* path)
             }
         }
 
-        while (strncmp(path, entry->name, entry->name_length) != 0) {
+        while (strncmp(path, entry->name, entry->name_length) != 0 || strlen(path) > entry->name_length) {
             if (entry->entry_length == 0) {
                 free(base_entry);
                 return err;
@@ -288,16 +284,27 @@ VFSIndexNode fstovfs(struct Inode inode)
     VFSIndexNode vfs_inode = {
         .type = inode.type,
         .size = inode.size,
-        .private_data = (uint32_t*)malloc(sizeof(uint32_t) * 14),
+        .private_data = (uint32_t*)malloc(sizeof(uint32_t) * 13),
         .file_operations = get_fs_file_operations(),
+        .number_of_references = 0,
     };
 
     if (vfs_inode.private_data == NULL) {
         vfs_inode.type = VFS_ERROR;
         return vfs_inode;
     }
-    memcpy(vfs_inode.private_data, inode.blocks, sizeof(uint32_t) * 14);
+    memcpy(vfs_inode.private_data, inode.blocks, sizeof(uint32_t) * 13);
     return vfs_inode;
+}
+
+struct Inode vfstofs(VFSIndexNode* vfs_inode)
+{
+    struct Inode inode = {
+        .type = vfs_inode->type,
+        .size = vfs_inode->size,
+    };
+    memcpy(inode.blocks, vfs_inode->private_data, sizeof(uint32_t) * 13);
+    return inode;
 }
 
 int create_inode(char* path, VFSFileType type) { }
@@ -315,30 +322,32 @@ VFSIndexNode get_inode(char* path)
     return vfs_inode;
 }
 
-VFSDirectory* get_directory(char* path)
+VFSDirectory* get_directory(char* path, VFSIndexNode* inode)
 {
-    struct Inode inode = resolve_inode(path);
-    if (inode.type != DIRECTORY) {
+    if (inode->type != VFS_DIRECTORY) {
         return NULL;
     }
-
-    struct DirectoryEntry* base_entry = fetch_inode_directory(inode);
-    if (base_entry == NULL) {
-        return NULL;
-    }
-    struct DirectoryEntry* entry = base_entry;
 
     VFSDirectory* vfs_dir = (VFSDirectory*)malloc(sizeof(VFSDirectory));
     if (vfs_dir == NULL) {
         return NULL;
     }
+    vfs_dir->entries_length = 0;
+    vfs_dir->entries = NULL;
+    vfs_dir->inode = inode;
+
+    struct DirectoryEntry* base_entry = fetch_inode_directory(vfstofs(inode));
+    if (base_entry == NULL) {
+        return vfs_dir;
+    }
+    struct DirectoryEntry* entry = base_entry;
 
     vfs_dir->entries = (VFSDirectoryEntry*)malloc(sizeof(VFSDirectoryEntry));
     if (vfs_dir->entries == NULL) {
         free(vfs_dir);
+        free(base_entry);
         return NULL;
     }
-    vfs_dir->entries_length = 0;
 
     while (entry->entry_length != 0) {
         VFSDirectoryEntry vfs_entry;

@@ -216,7 +216,7 @@ int main()
 
     vfs_set_driver(get_fs_driver_operations());
 
-    VFSFile* file = vfs_open_file("/testdir/test.txt");
+    VFSFile* file = vfs_open_file("/brainfuck.bin");
     if (file == NULL) {
         printf("Unable to open file\n");
         return 0;
@@ -226,11 +226,13 @@ int main()
     vfs_read(file, buf, 512);
     printf("Contents of file:\n%s\n", buf);
 
-    VFSDirectory* dir = vfs_open_directory("/testdir");
+    vfs_open_directory("/testdir2");
+    VFSDirectory* dir = vfs_open_directory("/testdir2");
     if (dir == NULL) {
         printf("Unable to open directory\n");
         return 0;
     }
+    printf("Opened dir\n");
     for (int i = 0; i < dir->entries_length; i++) {
         printf("Entry: %s\n", dir->entries[i].path);
     }

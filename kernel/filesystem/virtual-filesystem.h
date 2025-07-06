@@ -12,6 +12,7 @@ typedef enum {
 typedef enum {
     VFS_ERROR = 0,
     VFS_REGULAR_FILE = 1,
+    VFS_DIRECTORY = 2,
     VFS_BLOCK_DEVICE = 2,
     VFS_CHARACTER_DEVICE = 3,
 } VFSFileType;
@@ -29,7 +30,7 @@ typedef struct {
 
 typedef struct {
     uint32_t type;
-    uint32_t size;
+    uint64_t size;
     VFSFileOperations file_operations;
     void* private_data;
     uint32_t number_of_references;
@@ -39,7 +40,7 @@ typedef struct {
     VFSIndexNode* inode;
     void* private_data;
     uint32_t private_data_size;
-    uint32_t position;
+    uint64_t position;
 } VFSFile;
 
 typedef struct {
@@ -47,7 +48,7 @@ typedef struct {
 } VFSDirectoryEntry;
 
 typedef struct {
-    VFSIndexNode inode;
+    VFSIndexNode* inode;
     VFSDirectoryEntry* entries;
     uint32_t entries_length;
 } VFSDirectory;
@@ -55,13 +56,14 @@ typedef struct {
 typedef struct {
     int (*create_inode)(char* path, VFSFileType type);
     VFSIndexNode (*get_inode)(char* path);
-    VFSDirectory* (*get_directory)(char* path);
+    VFSDirectory* (*get_directory)(char* path, VFSIndexNode* inode);
     void (*free_inode_data)(VFSIndexNode inode);
 } VFSDriverOperations;
 
 /*
  *
  *  All driver functions should NOT modify the VFSIndexNode.number_of_refrences variable.
+ *  The driver should set number_of_refrences to 0 when it makes one in get_inode
  *  Open and close will keep track of refrences to each index node.
  *  The VFS will auto remove inodes no longer in use.
  *  The VFS expects that a file will be safe to remove after calling file_operations.flush().
