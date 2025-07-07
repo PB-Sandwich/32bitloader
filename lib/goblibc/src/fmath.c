@@ -374,14 +374,55 @@ frexpl(long double x, int *ex)
     return (u.e);
 }
 
-
-long double
-copysignl(long double x, long double y)
+long double copysignl(long double x, long double y)
 {
-	union IEEEl2bits ux, uy;
+    union IEEEl2bits ux, uy;
 
-	ux.e = x;
-	uy.e = y;
-	ux.bits.sign = uy.bits.sign;
-	return (ux.e);
+    ux.e = x;
+    uy.e = y;
+    ux.bits.sign = uy.bits.sign;
+    return (ux.e);
 }
+
+#ifndef BUILT_IN_FLOAT_NAN_AND_FINITE
+int isnan(double d)
+{
+    union IEEEd2bits u;
+
+    u.d = d;
+    return (u.bits.exp == 2047 && (u.bits.manl != 0 || u.bits.manh != 0));
+}
+
+int isnanf(float f)
+{
+    union IEEEf2bits u;
+
+    u.f = f;
+    return (u.bits.exp == 255 && u.bits.man != 0);
+}
+
+int isfinite(double d)
+{
+    union IEEEd2bits u;
+
+    u.d = d;
+    return (u.bits.exp != 2047);
+}
+
+int isfinitef(float f)
+{
+    union IEEEf2bits u;
+
+    u.f = f;
+    return (u.bits.exp != 255);
+}
+
+int isfinitel(long double e)
+{
+    union IEEEl2bits u;
+
+    u.e = e;
+    return (u.bits.exp != 32767);
+}
+
+#endif

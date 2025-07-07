@@ -4,6 +4,7 @@
 #include <file.h>
 #include <ctype.h>
 #include <errno.h>
+#include <scan_helpers.h>
 
 double atof(const char *s)
 {

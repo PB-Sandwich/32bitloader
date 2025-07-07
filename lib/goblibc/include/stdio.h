@@ -9,17 +9,30 @@
 #define feof(f) ((f)->flags & F_EOF)
 #define ferror(f) ((f)->flags & F_ERR)
 
-int format(FILE *__restrict, const char *__restrict, ...);
+/// @brief Reads data from the stream and stores them according to parameter format into the locations pointed by the elements in the variable argument list identified by arg.
+/// @param file The source stream 
+/// @param fmt Format spec string
+/// @param args Values to write data to
+/// @return 
+extern int gob_vfscanf(FILE *file, const char *fmt, va_list args);
 
-/// @brief Core of the printf logic that actually formats the input
-/// @param f File(or pseudo file) pointer to the destination
-/// @param fmt Formatting string
-/// @param ap List of arguments
-/// @param nl_arg
-/// @param nl_type
-/// @return
-static int printf_core(FILE *f, const char *fmt, va_list *ap, union arg *nl_arg, int *nl_type);
+/// @brief Read formatted input from a string and stores the result in the provided variables. 
+/// @param str String to read from
+/// @param fmt Format of the string 
+/// @param  
+/// @return The amount of matches in the provided strign
+int gob_sscanf(const char *str, const char *fmt, ...);
 
-static int fmt_fp(FILE *file, long double value, int w, int p, int fl, int t, int precision);
+/// @brief Format a string using sprintf formatting system
+/// @param str Target string
+/// @param fmt Formating options
+/// @param
+/// @return -1 on failure
+int gob_sprintf(char *str, const char *fmt, ...);
 
-static void pad(FILE *file, char c, int w, int l, int fl);
+/// @brief Loads the data from the locations, defined by vlist, converts them to character string equivalents and writes the results to a virtual file
+/// @param file Destination to which to write values to
+/// @param fmt Format using printf formatting symbols
+/// @param args provided list of values
+/// @return 
+int gob_vfprintf(FILE *file, const char *fmt, va_list args);

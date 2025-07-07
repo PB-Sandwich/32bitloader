@@ -461,8 +461,9 @@ static int printf_core(FILE *file, const char *fmt, va_list *ap, union arg *nl_a
             continue;
 
         /* Do not process any new directives once in error state. */
-        if (ferror(file))
-            return -1;
+        //TODO: Actually add that
+        // if (ferror(file))
+        //     return -1;
 
         z = buf + sizeof(buf);
         prefix = "-+   0X0x";

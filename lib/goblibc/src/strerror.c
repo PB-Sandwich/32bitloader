@@ -1,6 +1,6 @@
 const char __uprefix[] = "Unknown error";
 
-// TODO: Update error list
+// TODO: Update error list. Current values are copied from OpenBSD but don't fully match with ERRNO values
 
 /// @brief List of all errors. Taken from OpenBSD. Please fill out with values actually related to the OS
 const char *const sys_errlist[] = {

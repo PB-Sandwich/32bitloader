@@ -8,6 +8,7 @@
 #include <float.h>
 #include <format.h>
 #include <errno.h>
+#include <stdio.h>
 // #define BIT_FIXED_DECIMAL
 #ifdef BIT_FIXED_DECIMAL
 /// @brief simple alternative to floats until they will be available. Upper 16 bits are whole part and lower 16 bits are decimal part
@@ -516,8 +517,18 @@ int main(struct KernelExports *kernel_exports)
     char fixed_str_buffer[33];
 
     char output_buffer[255];
-    gob_sprintf(output_buffer, "dec: %u, oct: %o,hex: %x. Also a float: %f", 1234, 1234, 1234, 69.4201 );
+    gob_sprintf(output_buffer, "dec: %u, oct: %o,hex: %x. Also a float: %f but %s\n", 1234, 1234, 1234, 69.4201f, input_buffer);
     kernel_exports->printf(output_buffer);
+    kernel_exports->wait_for_keypress();
+
+    double mul_val3;
+    int mul_val1;
+    int mul_val2;
+    int match_count = gob_sscanf("23.4", "%f", &mul_val3);
+    memset(output_buffer, 0, sizeof(input_buffer));
+    gob_sprintf(output_buffer, "\nx = %x;f = %f;\n", mul_val3, mul_val3);
+    kernel_exports->printf(output_buffer);
+    kernel_exports->printf(strerror(errno));
     kernel_exports->wait_for_keypress();
 
     kernel_exports->printf("%s\n", fixed_to_str(fixed_mul(DECIMAL(232, 0), DECIMAL(11, 0)), fixed_str_buffer));

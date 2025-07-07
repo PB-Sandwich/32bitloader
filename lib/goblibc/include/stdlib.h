@@ -52,12 +52,32 @@ char *itoa(int value, char *buffer, int radix);
 /// @return
 char *int_to_str(int32_t value, char *buffer, int32_t radix, uint32_t *len);
 
+/// @brief Convert a string input into a floating point value. This is a nonstandard function so might behave out of spec
+/// @param  
+/// @return 
 double atof(const char *);
 
+/// @brief Convert a string into a floating point
+/// @param start Start of the string
+/// @param end End of the string
+/// @return Parsed value
 float strtof(const char *start, char **end);
 
+/// @brief Convert a string into a floating point double precision value
+/// @param start Start of the string
+/// @param end End of the string
+/// @return Parsed value
 double strtod(const char *start, char **end);
 
+/// @brief Convert a string into a floating point long double precision value
+/// @param start Start of the string
+/// @param end End of the string
+/// @return Parsed value
 long double strtold(const char *start, char **end);
 
+/// @brief Convert a string into a floating point
+/// @param s Start of the string
+/// @param p End of the string
+/// @param prec Precision
+/// @return Parsed value
 static long double strtox(const char *s, char **p, int prec);

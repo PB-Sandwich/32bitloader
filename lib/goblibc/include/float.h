@@ -1,6 +1,16 @@
-
+/**
+ * @file float.h
+ * @author Sofia "MetalPizzaCat"
+ * @brief File containing floating point math related constants and a few helper functions, mostly related to scan/print operations
+ * @version 0.1
+ * @date 2025-07-07
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
 #pragma once
 
+// TODO: Maybe move this to a separate file and find actually correct values
 #define MACHINE_FLOAT_i386
 #ifndef MACHINE_FLOAT_i386
 #define FLT_DIG __FLT_DIG__
@@ -77,4 +87,3 @@ static long long gob_scanexp(FILE *file, int pok);
 
 static long double gob_decfloat(FILE *file, int c, int bits, int emin, int sign, int pok);
 
-long double gob_floatscan(FILE *file, int prec, int pok);

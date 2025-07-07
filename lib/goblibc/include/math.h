@@ -11,9 +11,46 @@
    constant expression.  */
 #define NAN (0.0f / 0.0f)
 
-long double scalbnl(long double x, int n);
+union IEEEf2bits
+{
+	float f;
+	struct
+	{
+		unsigned int man : 23;
+		unsigned int exp : 8;
+		unsigned int sign : 1;
+	} bits;
+};
 
-double scalbn(double x, int n);
+union IEEEd2bits
+{
+	double d;
+	struct
+	{
+		unsigned int manl : 32;
+		unsigned int manh : 20;
+		unsigned int exp : 11;
+		unsigned int sign : 1;
+	} bits;
+};
+union IEEEl2bits
+{
+	long double e;
+	struct
+	{
+		unsigned int manl : 32;
+		unsigned int manh : 32;
+		unsigned int exp : 15;
+		unsigned int sign : 1;
+		unsigned int junk : 16;
+	} bits;
+	struct
+	{
+		unsigned long long man : 64;
+		unsigned int expsign : 16;
+		unsigned int junk : 16;
+	} xbits;
+};
 
 #if LDBL_MANT_DIG == 53 && LDBL_MAX_EXP == 1024
 #elif LDBL_MANT_DIG == 64 && LDBL_MAX_EXP == 16384 && __BYTE_ORDER == __LITTLE_ENDIAN
@@ -89,49 +126,25 @@ long double copysignl(long double x, long double y);
 
 long double fabsl(long double x);
 
+long double scalbnl(long double x, int n);
+
+double scalbn(double x, int n);
+
+#ifdef BUILT_IN_FLOAT_NAN_AND_FINITE
 #define isnan(x) __builtin_isnan(x)
 
 #define isfinite(x) __builtin_isfinite(x)
 
-union IEEEf2bits
-{
-	float f;
-	struct
-	{
-		unsigned int man : 23;
-		unsigned int exp : 8;
-		unsigned int sign : 1;
-	} bits;
-};
+#else
+int isnan(double d);
+int isnanf(float f);
 
-union IEEEd2bits
-{
-	double d;
-	struct
-	{
-		unsigned int manl : 32;
-		unsigned int manh : 20;
-		unsigned int exp : 11;
-		unsigned int sign : 1;
-	} bits;
-};
-union IEEEl2bits
-{
-	long double e;
-	struct
-	{
-		unsigned int manl : 32;
-		unsigned int manh : 32;
-		unsigned int exp : 15;
-		unsigned int sign : 1;
-		unsigned int junk : 16;
-	} bits;
-	struct
-	{
-		unsigned long long man : 64;
-		unsigned int expsign : 16;
-		unsigned int junk : 16;
-	} xbits;
-};
+int isfinite(double d);
+
+int isfinitef(float f);
+
+int isfinitel(long double e);
+
+#endif
 
 long double frexpl(long double x, int *ex);
