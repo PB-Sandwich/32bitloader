@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <float.h>
-
+#include <format.h>
 // #define BIT_FIXED_DECIMAL
 #ifdef BIT_FIXED_DECIMAL
 /// @brief simple alternative to floats until they will be available. Upper 16 bits are whole part and lower 16 bits are decimal part
@@ -100,17 +100,20 @@ char *fixed_to_str(fixed_t val, char *buffer)
 
 fixed_t fixed_mul(fixed_t a, fixed_t b)
 {
-    return ((a * b) + (FIXED_WHOLE_POSITION / 2)) / FIXED_WHOLE_POSITION;
+    double ta = (a / FIXED_WHOLE_POSITION) + (a % FIXED_WHOLE_POSITION) / FIXED_WHOLE_POSITION;
+    double tb = (b / FIXED_WHOLE_POSITION) + (b % FIXED_WHOLE_POSITION) / FIXED_WHOLE_POSITION;
+    double tc = ta * tb;
+    return DECIMAL((fixed_t)tc, (tc - (double)((fixed_t)tc) * FIXED_WHOLE_POSITION));
 }
 
 fixed_t fixed_div(fixed_t a, fixed_t b)
 {
-    return (((b * FIXED_WHOLE_POSITION) + (a / 2)) / a);
+    return (((a * FIXED_WHOLE_POSITION) + (b / 2)) / b);
 }
 
 fixed_t fixed_mod(fixed_t a, fixed_t b)
 {
-    return b - ((b / a) * a);
+    return a - ((a / b) * a);
 }
 
 /// @brief Convert a null terminated string into a fixed decimal value
@@ -487,10 +490,10 @@ bool execute(CalcExpression *ops, int32_t ops_len, fixed_t *result, char **error
                 number_stack_push(&stack, fixed_mul(a, b));
                 break;
             case ECOT_Div:
-                number_stack_push(&stack, fixed_div(b, a));
+                number_stack_push(&stack, fixed_div(a, b));
                 break;
             case ECOT_Mod:
-                number_stack_push(&stack, fixed_mod(b, a));
+                number_stack_push(&stack, fixed_mod(a, b));
                 break;
             }
         }
@@ -506,9 +509,17 @@ int main(struct KernelExports *kernel_exports)
 {
 
     // buffer for the entire input string
-    char input_buffer[255] = "(3 % 2) * (2 + 3)";
+    // char input_buffer[255] = "(5.35 / 2) * (24.8 / 8) - 232 * (9 + 2)";
+    char input_buffer[255] = "232 * 11";
     char *error_message = 0;
     char fixed_str_buffer[33];
+
+    char output_buffer[255];
+    gob_format(output_buffer, "%s wow", input_buffer);
+    kernel_exports->printf(output_buffer);
+    kernel_exports->wait_for_keypress();
+
+    kernel_exports->printf("%s\n", fixed_to_str(fixed_mul(DECIMAL(232, 0), DECIMAL(11, 0)), fixed_str_buffer));
 
     CalcExpression operation_array[100];
     int32_t operation_array_len = 0;

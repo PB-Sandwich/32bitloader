@@ -51,3 +51,13 @@ char *itoa(int value, char *buffer, int radix);
 /// @param len How long was the number that was written in the buffer
 /// @return
 char *int_to_str(int32_t value, char *buffer, int32_t radix, uint32_t *len);
+
+double atof(const char *);
+
+float strtof(const char *start, char **end);
+
+double strtod(const char *start, char **end);
+
+long double strtold(const char *start, char **end);
+
+static long double strtox(const char *s, char **p, int prec);
