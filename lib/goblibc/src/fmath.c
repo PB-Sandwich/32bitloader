@@ -218,6 +218,10 @@ double copysign(double x, double y)
 }
 
 #if LDBL_MANT_DIG == 53 && LDBL_MAX_EXP == 1024
+long double copysignl(long double x, long double y)
+{
+    return 0;
+}
 long double fabsl(long double x)
 {
     return fabs(x);
@@ -368,4 +372,16 @@ frexpl(long double x, int *ex)
         break;
     }
     return (u.e);
+}
+
+
+long double
+copysignl(long double x, long double y)
+{
+	union IEEEl2bits ux, uy;
+
+	ux.e = x;
+	uy.e = y;
+	ux.bits.sign = uy.bits.sign;
+	return (ux.e);
 }

@@ -248,14 +248,6 @@ static const char xdigits[16] = {
     "0123456789ABCDEF"};
 
 #define OOB(x) ((unsigned)(x) - 'A' > 'z' - 'A')
-#ifndef wchat_t
-#define wchar_t int
-#endif
-
-// TODO: replace with a better size_t implementation
-#ifndef size_t
-#define size_t uint32_t
-#endif
 
 static int getint(char **s)
 {
@@ -270,14 +262,11 @@ static int getint(char **s)
     return i;
 }
 
-static void out(char *str, const char *src_str, uint32_t len)
+static void out(FILE *file, const char *src_str, uint32_t len)
 {
-    for (uint32_t i = 0; i < len; i++)
-    {
-        str[i] = src_str[i];
-    }
+    scan_help_write_str(src_str, len, file);
 }
-static void pad(char *str, char c, int width, int l, int flags)
+static void pad(FILE *file, char c, int width, int l, int flags)
 {
     char pad[256];
     if (flags & (LEFT_ADJ | ZERO_PAD) || l >= width)
@@ -287,9 +276,9 @@ static void pad(char *str, char c, int width, int l, int flags)
     memset(pad, c, l > sizeof(pad) ? sizeof(pad) : l);
     for (; l >= sizeof(pad); l -= sizeof(pad))
     {
-        out(str, pad, sizeof(pad));
+        out(file, pad, sizeof(pad));
     }
-    out(str, pad, l);
+    out(file, pad, l);
 }
 
 static char *gob_format_hex(uintmax_t x, char *s, int lower)
@@ -318,14 +307,8 @@ static char *gob_format_unsigned(uintmax_t value, char *str)
     return str;
 }
 
-int gob_format(char *str, const char *fmt, ...)
+int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_arg, int *nl_type)
 {
-    va_list args;
-    va_start(args, fmt);
-
-    int nl_type[NL_ARGMAX + 1] = {0};
-    union arg nl_arg[NL_ARGMAX + 1];
-
     char *a;
     char *z;
     char *fmt_ptr = (char *)fmt;
@@ -352,14 +335,15 @@ int gob_format(char *str, const char *fmt, ...)
         if (len > INT_MAX - output_count)
         {
             errno = EOVERFLOW;
-            va_end(args);
             return -1;
         }
 
         /* Update output count, end loop when fmt is exhausted */
         output_count += len;
-        if (!*fmt_ptr)
+        if (*fmt_ptr == '\0')
+        {
             break;
+        }
 
         /* Handle literal text and %% format specifiers */
         for (a = fmt_ptr; *fmt_ptr != '\0' && *fmt_ptr != '%'; fmt_ptr++)
@@ -369,14 +353,17 @@ int gob_format(char *str, const char *fmt, ...)
         if (z - a > INT_MAX - output_count)
         {
             errno = EOVERFLOW;
-            va_end(args);
             return -1;
         }
         len = z - a;
-        if (str != NULL)
-            out(str, a, len);
+        if (file != NULL)
+        {
+            out(file, a, len);
+        }
         if (len > 0)
+        {
             continue;
+        }
 
         if (isdigit(fmt_ptr[1]) && fmt_ptr[2] == '$')
         {
@@ -392,7 +379,9 @@ int gob_format(char *str, const char *fmt, ...)
 
         /* Read modifier flags */
         for (mod_flag = 0; (unsigned)*fmt_ptr - ' ' < 32 && (FLAGMASK & (1U << (*fmt_ptr - ' '))); fmt_ptr++)
+        {
             mod_flag |= 1U << (*fmt_ptr - ' ');
+        }
 
         /* Read field width */
         if (*fmt_ptr == '*')
@@ -400,21 +389,25 @@ int gob_format(char *str, const char *fmt, ...)
             if (isdigit(fmt_ptr[1]) && fmt_ptr[2] == '$')
             {
                 l10n = 1;
-                if (!str)
-                    nl_type[fmt_ptr[1] - '0'] = INT, w = 0;
+                if (file == NULL)
+                {
+                    nl_type[fmt_ptr[1] - '0'] = INT;
+                    w = 0;
+                }
                 else
+                {
                     w = nl_arg[fmt_ptr[1] - '0'].i;
+                }
                 fmt_ptr += 3;
             }
             else if (!l10n)
             {
-                w = str ? va_arg(args, int) : 0;
+                w = file ? va_arg(*args, int) : 0;
                 fmt_ptr++;
             }
             else
             {
                 errno = EINVAL;
-                va_end(args);
                 return -1;
             }
             if (w < 0)
@@ -423,7 +416,6 @@ int gob_format(char *str, const char *fmt, ...)
         else if ((w = getint(&fmt_ptr)) < 0)
         {
             errno = EOVERFLOW;
-            va_end(args);
             return -1;
         }
 
@@ -432,21 +424,25 @@ int gob_format(char *str, const char *fmt, ...)
         {
             if (isdigit(fmt_ptr[2]) && fmt_ptr[3] == '$')
             {
-                if (!str)
-                    nl_type[fmt_ptr[2] - '0'] = INT, p = 0;
+                if (file == NULL)
+                {
+                    nl_type[fmt_ptr[2] - '0'] = INT;
+                    p = 0;
+                }
                 else
+                {
                     p = nl_arg[fmt_ptr[2] - '0'].i;
+                }
                 fmt_ptr += 4;
             }
             else if (!l10n)
             {
-                p = str ? va_arg(args, int) : 0;
+                p = file ? va_arg(*args, int) : 0;
                 fmt_ptr += 2;
             }
             else
             {
                 errno = EINVAL;
-                va_end(args);
                 return -1;
             }
             xp = (p >= 0);
@@ -470,7 +466,6 @@ int gob_format(char *str, const char *fmt, ...)
             if (OOB(*fmt_ptr))
             {
                 errno = EINVAL;
-                va_end(args);
                 return -1;
             }
             ps = st;
@@ -479,7 +474,6 @@ int gob_format(char *str, const char *fmt, ...)
         if (!st)
         {
             errno = EINVAL;
-            va_end(args);
             return -1;
         }
 
@@ -487,36 +481,45 @@ int gob_format(char *str, const char *fmt, ...)
         if (st == NOARG)
         {
             if (arg_pos >= 0)
+            {
                 errno = EINVAL;
-            va_end(args);
-            return -1;
+                return -1;
+            }
         }
         else
         {
             if (arg_pos >= 0)
             {
-                if (!str)
+                if (file == NULL)
+                {
                     nl_type[arg_pos] = st;
+                }
                 else
+                {
                     arg = nl_arg[arg_pos];
+                }
             }
-            else if (str)
-                pop_arg(&arg, st, &args);
+            else if (file != NULL)
+            {
+                pop_arg(&arg, st, args);
+            }
             else
+            {
                 return 0;
+            }
         }
 
-        if (!str)
+        if (file == NULL)
             continue;
 
         /* Do not process any new directives once in error state. */
         // the original implementation relied  on ferror, because it used file instead of string, idk what to do here
+        // TODO: add proper file state check
         // if (ferror(str))
-        if (0)
-        {
-            va_end(args);
-            return -1;
-        }
+        // if (0)
+        // {
+        //     return -1;
+        // }
 
         z = buf + sizeof(buf);
         prefix = "-+   0X0x";
@@ -529,7 +532,9 @@ int gob_format(char *str, const char *fmt, ...)
 
         /* - and 0 flags are mutually exclusive */
         if (mod_flag & LEFT_ADJ)
+        {
             mod_flag &= ~ZERO_PAD;
+        }
 
         switch (t)
         {
@@ -567,7 +572,9 @@ int gob_format(char *str, const char *fmt, ...)
         case 'X':
             a = gob_format_hex(arg.i, z, t & 32);
             if (arg.i && (mod_flag & ALT_FORM))
+            {
                 prefix += (t >> 4), pl = 2;
+            }
             goto ifmt_tail;
         case 'o':
             a = gob_format_octal(arg.i, z);
@@ -597,7 +604,6 @@ int gob_format(char *str, const char *fmt, ...)
             if (xp && p < 0)
             {
                 errno = EOVERFLOW;
-                va_end(args);
                 return -1;
             }
             if (xp)
@@ -624,7 +630,6 @@ int gob_format(char *str, const char *fmt, ...)
             if (p < 0 && *z)
             {
                 errno = EOVERFLOW;
-                va_end(args);
                 return -1;
             }
             p = z - a;
@@ -643,23 +648,21 @@ int gob_format(char *str, const char *fmt, ...)
                 ;
             if (len < 0)
             {
-                va_end(args);
                 return -1;
             }
             if (i > INT_MAX)
             {
                 errno = EOVERFLOW;
-                va_end(args);
                 return -1;
             }
             p = i;
-            pad(str, ' ', w, p, mod_flag);
+            pad(file, ' ', w, p, mod_flag);
             ws = arg.p;
             for (i = 0; i < 0U + p && *ws && i + (len = wctomb(mb, *ws++)) <= p; i += len)
             {
-                out(str, mb, len);
+                out(file, mb, len);
             }
-            pad(str, ' ', w, p, mod_flag ^ LEFT_ADJ);
+            pad(file, ' ', w, p, mod_flag ^ LEFT_ADJ);
             len = w > p ? w : p;
             continue;
         case 'e':
@@ -673,14 +676,12 @@ int gob_format(char *str, const char *fmt, ...)
             if (xp && p < 0)
             {
                 errno = EOVERFLOW;
-                va_end(args);
                 return -1;
             }
-            len = gob_format_float(str, arg.f, w, p, mod_flag, t, ps);
+            len = gob_format_float(file, arg.f, w, p, mod_flag, t, ps);
             if (len < 0)
             {
                 errno = EOVERFLOW;
-                va_end(args);
                 return -1;
             }
             continue;
@@ -691,7 +692,6 @@ int gob_format(char *str, const char *fmt, ...)
         if (p > INT_MAX - pl)
         {
             errno = EOVERFLOW;
-            va_end(args);
             return -1;
         }
         if (w < pl + p)
@@ -699,41 +699,43 @@ int gob_format(char *str, const char *fmt, ...)
         if (w > INT_MAX - output_count)
         {
             errno = EOVERFLOW;
-            va_end(args);
             return -1;
         }
 
-        pad(str, ' ', w, pl + p, mod_flag);
-        out(str, prefix, pl);
-        pad(str, '0', w, pl + p, mod_flag ^ ZERO_PAD);
-        pad(str, '0', p, z - a, 0);
-        out(str, a, z - a);
-        pad(str, ' ', w, pl + p, mod_flag ^ LEFT_ADJ);
+        pad(file, ' ', w, pl + p, mod_flag);
+        out(file, prefix, pl);
+        pad(file, '0', w, pl + p, mod_flag ^ ZERO_PAD);
+        pad(file, '0', p, z - a, 0);
+        out(file, a, z - a);
+        pad(file, ' ', w, pl + p, mod_flag ^ LEFT_ADJ);
 
         len = w;
     }
 
-    if (str)
+    if (file != NULL)
+    {
         return output_count;
+    }
     if (!l10n)
+    {
         return 0;
+    }
 
     for (i = 1; i <= NL_ARGMAX && nl_type[i]; i++)
-        pop_arg(nl_arg + i, nl_type[i], &args);
+    {
+        pop_arg(&nl_arg[i], nl_type[i], &args);
+    }
     for (; i <= NL_ARGMAX && !nl_type[i]; i++)
         ;
     if (i <= NL_ARGMAX)
     {
         errno = EINVAL;
-        va_end(args);
         return -1;
     }
     return 1;
-
-    va_end(args);
 }
 
-static int gob_format_float(char *str, long double value, int width, int p, int fl, int t, int precision)
+static int gob_format_float(FILE *file, long double value, int width, int p, int fl, int t, int precision)
 {
     int bufsize = (precision == BIGLPRE)
                       ? (LDBL_MANT_DIG + 28) / 29 + 1 +                 // mantissa expansion
@@ -836,13 +838,13 @@ static int gob_format_float(char *str, long double value, int width, int p, int 
         else
             len = (str_ptr - buf) + (ebuf - estr);
 
-        pad(str, ' ', width, pl + len, fl);
-        out(str, prefix, pl);
-        pad(str, '0', width, pl + len, fl ^ ZERO_PAD);
-        out(str, buf, str_ptr - buf);
-        pad(str, '0', len - (ebuf - estr) - (str_ptr - buf), 0, 0);
-        out(str, estr, ebuf - estr);
-        pad(str, ' ', width, pl + len, fl ^ LEFT_ADJ);
+        pad(file, ' ', width, pl + len, fl);
+        out(file, prefix, pl);
+        pad(file, '0', width, pl + len, fl ^ ZERO_PAD);
+        out(file, buf, str_ptr - buf);
+        pad(file, '0', len - (ebuf - estr) - (str_ptr - buf), 0, 0);
+        out(file, estr, ebuf - estr);
+        pad(file, ' ', width, pl + len, fl ^ LEFT_ADJ);
         return MAX(width, pl + len);
     }
     if (p < 0)
@@ -1014,9 +1016,9 @@ static int gob_format_float(char *str, long double value, int width, int p, int 
     {
         return -1;
     }
-    pad(str, ' ', width, pl + len, fl);
-    out(str, prefix, pl);
-    pad(str, '0', width, pl + len, fl ^ ZERO_PAD);
+    pad(file, ' ', width, pl + len, fl);
+    out(file, prefix, pl);
+    pad(file, '0', width, pl + len, fl ^ ZERO_PAD);
 
     if ((t | 32) == 'f')
     {
@@ -1033,7 +1035,7 @@ static int gob_format_float(char *str, long double value, int width, int p, int 
             out(str, str, buf + 9 - str);
         }
         if (p || (fl & ALT_FORM))
-            out(str, ".", 1);
+            out(file, ".", 1);
         for (; d < z && p > 0; d++, p -= 9)
         {
             char *str = gob_format_unsigned(*d, buf + 9);
@@ -1041,7 +1043,7 @@ static int gob_format_float(char *str, long double value, int width, int p, int 
                 *--str = '0';
             out(str, str, MIN(9, p));
         }
-        pad(str, '0', p + 9, 9, 0);
+        pad(file, '0', p + 9, 9, 0);
     }
     else
     {
@@ -1064,11 +1066,45 @@ static int gob_format_float(char *str, long double value, int width, int p, int 
             out(str, str, MIN(buf + 9 - str, p));
             p -= buf + 9 - str;
         }
-        pad(str, '0', p + 18, 18, 0);
-        out(str, estr, ebuf - estr);
+        pad(file, '0', p + 18, 18, 0);
+        out(file, estr, ebuf - estr);
     }
 
-    pad(str, ' ', width, pl + len, fl ^ LEFT_ADJ);
+    pad(file, ' ', width, pl + len, fl ^ LEFT_ADJ);
 
     return MAX(width, pl + len);
+}
+
+int gob_vfprintf(FILE *file, const char *fmt, va_list args)
+{
+
+    va_list args_copy;
+
+    va_copy(args_copy, args);
+    int nl_type[NL_ARGMAX + 1] = {0};
+    union arg nl_arg[NL_ARGMAX + 1];
+    // calling the function with file = NULL will fill out the arg list
+    if (gob_format_core(NULL, fmt, &args_copy, nl_arg, nl_type) < 0)
+    {
+        va_end(args_copy);
+        return -1;
+    }
+
+    int result = gob_format_core(file, fmt, &args_copy, nl_arg, nl_type);
+
+    va_end(args_copy);
+    return result;
+}
+
+int gob_sprintf(char *str, const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    FILE str_file;
+
+    // use pseudo file because it's better than just raw string. kinda.
+    scan_help_file_from_string(&str_file, str);
+    int result = gob_vfprintf(&str_file, fmt, args);
+    va_end(args);
+    return result;
 }

@@ -34,7 +34,6 @@ struct _IO_FILE
 
 typedef struct _IO_FILE FILE;
 
-
 /// @brief Create a pseudo file from a null terminated string
 /// @param file A non-null file pointer to be initialized
 /// @param str Null terminated string
@@ -65,4 +64,4 @@ int __uflow(FILE *it_str);
 /// @param len Length of the string
 /// @param file Destination file
 /// @return
-uint32_t __fwritex(const unsigned char *restrict str, uint32_t len, FILE *restrict file);
+uint32_t scan_help_write_str(const unsigned char *restrict str, uint32_t len, FILE *restrict file);

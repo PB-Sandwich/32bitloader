@@ -2,13 +2,28 @@
 #include <stdio.h>
 #include <string.h>
 
-// this is just a placeholder. remove this ifdef and write actual file functions here 
-#if 0
+// this is just a placeholder. remove this ifdef and write actual file functions here
+
 void scan_help_file_from_string(FILE *file, const char *str)
 {
     file->buf = str;
     file->rpos = str;
     file->rend = (void *)-1;
+}
+
+void scan_help_lim(FILE *file, off_t lim)
+{
+    file->shlim = lim;
+    file->shcnt = file->buf - file->rpos;
+    /* If lim is nonzero, rend must be a valid pointer. */
+    if (lim && file->rend - file->rpos > lim)
+    {
+        file->shend = file->rpos + lim;
+    }
+    else
+    {
+        file->shend = file->rend;
+    }
 }
 
 char __scan_help_getc(FILE *file)
@@ -63,6 +78,17 @@ int __uflow(FILE *file)
     return EOF;
 }
 
+uint32_t scan_help_write_str(const unsigned char *restrict str, uint32_t len, FILE *restrict file)
+{
+    for (uint32_t i = 0; i < len; i++)
+    {
+        *file->rpos = str[i];
+        file->rpos++;
+    }
+    return 0;
+}
+
+#if 0
 uint32_t __fwritex(const unsigned char *restrict str, uint32_t len, FILE *restrict file)
 {
     uint32_t i = 0;
@@ -92,6 +118,5 @@ uint32_t __fwritex(const unsigned char *restrict str, uint32_t len, FILE *restri
     file->wpos += len;
     return len + i;
 }
-
 
 #endif
