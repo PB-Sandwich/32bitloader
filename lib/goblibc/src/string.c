@@ -41,14 +41,28 @@ int memcmp(void *buf1, void *buf2, uint32_t size)
 
 char *strcpy(char *str_dest, char *str_source)
 {
-    int len1 = strlen(str_dest);
-    int len2 = strlen(str_source);
-    int len = len1;
-    if (len2 < len1)
+    char *dest = str_dest;
+    for (; (*dest = *str_source) != '\0'; dest++, str_source++)
+        ;
+
+    return str_dest;
+}
+
+char *strncpy(char *str_dest, char *str_source, int len)
+{
+    if (len == 0)
     {
-        len = len2;
+        return str_dest;
     }
-    return memcpy(str_dest, str_source, len);
+    char *dest = str_dest;
+    for (len--; (*dest = *str_source) != '\0' && len > 0; dest++, str_source++, len--)
+        ;
+    // pad rest of the string with zeros. OpenBSD does it, idk how correct that actually is
+    while (--len > 0)
+    {
+        *dest++ = '\0';
+    }
+    return str_dest;
 }
 
 int strcmp(const char *p1, const char *p2)

@@ -1,7 +1,7 @@
 /**
- * @file kernel.h
+ * @file estros.h
  * @author Sofia "MetalPizzaCat"
- * @brief Very barebones file that contains basic structures required to to interact with kernel. Probably could use a more os specific name
+ * @brief Very barebones file that contains basic structures required to to interact with kernel for EstrOS.
  * @version 0.1
  * @date 2025-06-27
  *
@@ -141,6 +141,9 @@ enum Colors
     EC_White
 };
 
+/// @brief Colors available to use in the text buffer
+typedef enum Colors KernelTerminalColors;
+
 /// @brief Struct exposing functions for interacting with kernel
 struct KernelExports
 {
@@ -171,3 +174,5 @@ struct KernelExports
 
     void (*memcpy)(void *dest, void *source, uint32_t size);
 };
+
+uint16_t* get_text_buffer_address();

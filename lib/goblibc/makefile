@@ -24,6 +24,7 @@ TARGETS := $(BUILD_DIR)/string.c.o\
 			$(BUILD_DIR)/intscan.c.o\
 			$(BUILD_DIR)/arith64.c.o\
 			$(BUILD_DIR)/mkinternal.c.o\
+			$(BUILD_DIR)/estros.c.o\
 			$(BUILD_DIR)/file_scan_helpers.c.o\
 			$(BUILD_DIR)/app.c.o
 

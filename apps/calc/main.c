@@ -2,162 +2,21 @@
 #include <stdbool.h>
 #include <endian.h>
 #include <string.h>
-#include <kernel.h>
+#include <estros.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <float.h>
 #include <format.h>
 #include <errno.h>
 #include <stdio.h>
-// #define BIT_FIXED_DECIMAL
-#ifdef BIT_FIXED_DECIMAL
-/// @brief simple alternative to floats until they will be available. Upper 16 bits are whole part and lower 16 bits are decimal part
-typedef int32_t fixed_t;
-#define FIXED_DECIMAL_UPPER_MASK 0xffff0000
-#define FIXED_DECIMAL_LOWER_MASK 0x0000ffff
 
-#define DECIMAL(whole, decimal) (((uint32_t)whole << 16) | (uint32_t)decimal)
+// This way it can be swapped out with any type once logic for that type is added
+typedef int32_t number_t;
 
-/// @brief Convert a fixed decimal type value into string
-/// @param val Value to convert
-/// @param buffer Buffer where the value will be stored. Must be able to contain whole number
-/// @return Pointer to the buffer
-char *fixed_point_to_string(fixed_t val, char *buffer)
+number_t parse_number(char *buffer)
 {
-    // max number count for whole part, max number count for decimal part, byte for point, byte for sign, byte for null terminator
-    char temp[5];
-    // where do we currently have to write in the buffer
-    uint32_t buffer_pos = 0;
-
-    if (val < 0)
-    {
-        buffer[buffer_pos++] = '-';
-        val = -val;
-    }
-    uint32_t current_num_len = 0;
-    uint16_t upper = (val & FIXED_DECIMAL_UPPER_MASK) >> 16;
-    uint16_t lower = val & FIXED_DECIMAL_LOWER_MASK;
-
-    int_to_str(upper, buffer + buffer_pos, 10, &current_num_len);
-    buffer_pos += current_num_len;
-    buffer[buffer_pos++] = '.';
-
-    for (int32_t i = sizeof(temp) - 1; i >= 0; lower /= 10)
-    {
-        temp[i--] = lower % 10 + '0';
-    }
-    for (int32_t i = 0; i < sizeof(temp); i++)
-    {
-        buffer[buffer_pos + i] = temp[i];
-    }
-    buffer[buffer_pos + sizeof(temp)] = '\0';
-    return buffer;
+    return atoi(buffer);
 }
-#else
-// this is the implementation which is meant for base 10
-// this does mean that it can be awkward to use
-
-/// @brief simple alternative to floats until they will be available. Upper 16 bits are whole part and lower 16 bits are decimal part
-typedef int32_t fixed_t;
-// Which position does the whole number start from
-#define FIXED_WHOLE_POSITION 10000
-
-#define DECIMAL(whole, decimal) (((fixed_t)whole * FIXED_WHOLE_POSITION) + (fixed_t)decimal)
-
-/// @brief Convert a fixed decimal type value into string
-/// @param val Value to convert
-/// @param buffer Buffer where the value will be stored. Must be able to contain whole number
-/// @return Pointer to the buffer
-char *fixed_to_str(fixed_t val, char *buffer)
-{
-    // max number count for whole part, max number count for decimal part, byte for point, byte for sign, byte for null terminator
-    char temp[4];
-    // where do we currently have to write in the buffer
-    uint32_t buffer_pos = 0;
-
-    if (val < 0)
-    {
-        buffer[buffer_pos++] = '-';
-        val = -val;
-    }
-    uint32_t current_num_len = 0;
-    uint16_t upper = val / FIXED_WHOLE_POSITION;
-    uint16_t lower = val % FIXED_WHOLE_POSITION;
-
-    int_to_str(upper, buffer + buffer_pos, 10, &current_num_len);
-    buffer_pos += current_num_len;
-    buffer[buffer_pos++] = '.';
-
-    for (int32_t i = sizeof(temp) - 1; i >= 0; lower /= 10)
-    {
-        temp[i--] = lower % 10 + '0';
-    }
-    for (int32_t i = 0; i < sizeof(temp); i++)
-    {
-        buffer[buffer_pos + i] = temp[i];
-    }
-    buffer[buffer_pos + sizeof(temp)] = '\0';
-    return buffer;
-}
-
-fixed_t fixed_mul(fixed_t a, fixed_t b)
-{
-    double ta = (a / FIXED_WHOLE_POSITION) + (a % FIXED_WHOLE_POSITION) / FIXED_WHOLE_POSITION;
-    double tb = (b / FIXED_WHOLE_POSITION) + (b % FIXED_WHOLE_POSITION) / FIXED_WHOLE_POSITION;
-    double tc = ta * tb;
-    return DECIMAL((fixed_t)tc, (tc - (double)((fixed_t)tc) * FIXED_WHOLE_POSITION));
-}
-
-fixed_t fixed_div(fixed_t a, fixed_t b)
-{
-    return (((a * FIXED_WHOLE_POSITION) + (b / 2)) / b);
-}
-
-fixed_t fixed_mod(fixed_t a, fixed_t b)
-{
-    return a - ((a / b) * a);
-}
-
-/// @brief Convert a null terminated string into a fixed decimal value
-/// @param buffer String buffer
-/// @return parsed value
-fixed_t str_to_fixed(char *buffer)
-{
-    int had_sign = false;
-    int had_point = false;
-    fixed_t upper = 0;
-    fixed_t lower = 0;
-    fixed_t sign = 1;
-    int32_t decimal_part_mult = FIXED_WHOLE_POSITION / 10;
-    for (; *buffer != '\0'; buffer++)
-    {
-        if (*buffer == '-' && !had_sign)
-        {
-            sign = -1;
-            had_sign = 1;
-        }
-        else if (*buffer == '.')
-        {
-            had_point = 1;
-        }
-        else if (isdigit(*buffer))
-        {
-            had_sign = 1;
-            if (!had_point)
-            {
-                upper += *buffer - '0';
-                upper *= 10;
-            }
-            else
-            {
-                lower += (*buffer - '0') * decimal_part_mult;
-                decimal_part_mult /= 10;
-            }
-        }
-    }
-    return DECIMAL(upper / 10, lower) * sign;
-}
-#endif
 
 enum CalcExprType
 {
@@ -178,7 +37,7 @@ enum CalcOperationType
 
 union CalcExpressionValue
 {
-    fixed_t constant;
+    number_t constant;
     enum CalcOperationType operation;
 };
 
@@ -248,7 +107,7 @@ CalcExpression make_expr_op_from_char(char c, bool *success)
 /// @brief Create an expression from a constant vavlue
 /// @param val Value
 /// @return Expression
-CalcExpression make_expr_const(fixed_t val)
+CalcExpression make_expr_const(number_t val)
 {
     CalcExpression expr;
     expr.type = ECET_Constant;
@@ -326,7 +185,7 @@ char operator_to_char(enum CalcOperationType op)
 
 struct NumberStack
 {
-    fixed_t stack[50];
+    number_t stack[50];
     int32_t offset;
 };
 
@@ -337,7 +196,7 @@ void number_stack_init(NumberStack *stack)
     stack->offset = 0;
     memset(stack->stack, 0, sizeof(int32_t) * 50);
 }
-fixed_t number_stack_pop(NumberStack *stack, bool *success)
+number_t number_stack_pop(NumberStack *stack, bool *success)
 {
     if (stack->offset == 0)
     {
@@ -348,7 +207,7 @@ fixed_t number_stack_pop(NumberStack *stack, bool *success)
     return stack->stack[--stack->offset];
 }
 
-void number_stack_push(NumberStack *stack, fixed_t val)
+void number_stack_push(NumberStack *stack, number_t val)
 {
     stack->stack[stack->offset++] = val;
 }
@@ -400,7 +259,8 @@ bool parse_input(const char *input_buffer, int32_t input_buffer_len, char **erro
             {
                 if (input_buffer[input_buffer_pos] == '.')
                 {
-                    if (had_decimal_point)
+                    // temporary until floats are added
+                    if (had_decimal_point || true)
                     {
                         *error_message = "Invalid number";
                         return false;
@@ -413,7 +273,7 @@ bool parse_input(const char *input_buffer, int32_t input_buffer_len, char **erro
                     number_buffer[number_buffer_offset++] = input_buffer[input_buffer_pos];
                 }
             }
-            result[result_array_offset++] = make_expr_const(str_to_fixed(number_buffer));
+            result[result_array_offset++] = make_expr_const(parse_number(number_buffer));
             input_buffer_pos--;
         }
         else if (ch == '(')
@@ -453,7 +313,7 @@ bool parse_input(const char *input_buffer, int32_t input_buffer_len, char **erro
     return true;
 }
 
-bool execute(CalcExpression *ops, int32_t ops_len, fixed_t *result, char **error_message)
+bool execute(CalcExpression *ops, int32_t ops_len, number_t *result, char **error_message)
 {
     NumberStack stack;
     number_stack_init(&stack);
@@ -468,13 +328,13 @@ bool execute(CalcExpression *ops, int32_t ops_len, fixed_t *result, char **error
         {
             bool value_grab_result = false;
 
-            fixed_t b = number_stack_pop(&stack, &value_grab_result);
+            number_t b = number_stack_pop(&stack, &value_grab_result);
             if (!value_grab_result)
             {
                 *error_message = "Not enough values on stack";
                 return false;
             }
-            fixed_t a = number_stack_pop(&stack, &value_grab_result);
+            number_t a = number_stack_pop(&stack, &value_grab_result);
             if (!value_grab_result)
             {
                 *error_message = "Not enough values on stack";
@@ -489,13 +349,13 @@ bool execute(CalcExpression *ops, int32_t ops_len, fixed_t *result, char **error
                 number_stack_push(&stack, a - b);
                 break;
             case ECOT_Mul:
-                number_stack_push(&stack, fixed_mul(a, b));
+                number_stack_push(&stack, a * b);
                 break;
             case ECOT_Div:
-                number_stack_push(&stack, fixed_div(a, b));
+                number_stack_push(&stack, a / b);
                 break;
             case ECOT_Mod:
-                number_stack_push(&stack, fixed_mod(a, b));
+                number_stack_push(&stack, a % b);
                 break;
             }
         }
@@ -507,67 +367,262 @@ bool execute(CalcExpression *ops, int32_t ops_len, fixed_t *result, char **error
     return success;
 }
 
+typedef struct
+{
+    uint16_t *text_buffer;
+    int32_t width;
+    int32_t height;
+} ScreenData;
+
+/// @brief Clear screen with a given color
+/// @param screen Screen data
+/// @param clear_color What color to clean the screen to
+void gob_term_clear(ScreenData *screen, KernelTerminalColors clear_color)
+{
+    for (int32_t i = 0; i < screen->width * screen->height; i++)
+    {
+        screen->text_buffer[i] = ((clear_color << 4) | clear_color) << 8;
+    }
+}
+
+/// @brief Draw a line of characters from given coors to the end of the screen going right or until the end of width
+/// @param screen Screen data
+/// @param x
+/// @param y
+/// @param width Width of the line
+/// @param ch Character to write
+/// @param bg_color Color of the character
+/// @param fg_color Color of the background
+void gob_term_line(ScreenData *screen, int32_t x, int32_t y, int32_t width, char ch, KernelTerminalColors bg_color, KernelTerminalColors fg_color)
+{
+    uint16_t *start = screen->text_buffer + x + y * screen->width;
+    for (int32_t i = 0; i + x < screen->width && i < width; i++)
+    {
+        start[i] = (((bg_color << 4) | fg_color) << 8) | ch;
+    }
+}
+
+void gob_term_text(ScreenData *screen, int32_t x, int32_t y, const char *text, size_t len, KernelTerminalColors bg_color, KernelTerminalColors fg_color)
+{
+    uint16_t *start = screen->text_buffer + x + y * screen->width;
+    for (int32_t i = 0; i < len && x + i < screen->width; i++)
+    {
+        start[i] = (((bg_color << 4) | fg_color) << 8) | text[i];
+    }
+}
+
+/// @brief Doubly linked list of all TUI elements in the application
+struct GobElement
+{
+    struct GobElement *prev;
+    struct GobElement *next;
+    struct GobApp *app;
+    /// @brief Element specific data used for the specific logic. Using void* is awkward but i can't be bothered to implement c++
+    void *internal;
+
+    bool is_focused;
+    bool can_be_focused;
+    int32_t x;
+    int32_t y;
+    bool has_shadow;
+    /// @brief Function used to render this element
+    void (*render)(struct GobElement *);
+
+    /// @brief Used to free all the data allocated specifically by this element
+    void (*free)(struct GobElement *);
+};
+
+struct GobApp
+{
+    struct GobElement *root;
+    ScreenData screen;
+    KernelTerminalColors default_background_color;
+    KernelTerminalColors status_bar_background_color;
+    KernelTerminalColors status_bar_foreground_color;
+    char status_text[80];
+};
+
+struct GobLabelData
+{
+    char text[255];
+    KernelTerminalColors text_color;
+    KernelTerminalColors background_color;
+};
+
+struct GobInputBoxData
+{
+    char input_buffer[255];
+};
+
+typedef struct GobElement GobElement;
+typedef struct GobInputBoxData GobInputBoxData;
+typedef struct GobLabelData GobLabelData;
+
+void gob_render_element(GobElement *elem)
+{
+    if (elem->render != NULL)
+    {
+        elem->render(elem);
+    }
+}
+
+void gob_elem_free(GobElement *elem)
+{
+    elem->free(elem);
+    free(elem);
+}
+
+void gob_label_free(GobElement *elem)
+{
+    GobLabelData *data = (GobLabelData *)(elem->internal);
+    free(data);
+}
+
+void gob_label_render(GobElement *elem)
+{
+    GobLabelData *data = (GobLabelData *)(elem->internal);
+    gob_term_text(&elem->app->screen, elem->x, elem->y, data->text, strlen(data->text), data->background_color, data->text_color);
+}
+
+void gob_label_set_text(GobElement *elem, const char *text)
+{
+    GobLabelData *data = (GobLabelData *)(elem->internal);
+    strncpy(data->text, text, 255);
+    gob_term_text(&elem->app->screen, elem->x, elem->y, data->text, strlen(data->text), data->background_color, data->text_color);
+}
+
+void gob_init_label(GobElement *elem, const char *text, int32_t x, int32_t y, KernelTerminalColors text_color, KernelTerminalColors background_color)
+{
+    GobLabelData *data = (GobLabelData *)malloc(sizeof(GobLabelData));
+    elem->internal = data;
+    elem->free = gob_label_free;
+    elem->render = gob_label_render;
+    elem->x = x;
+    elem->next = NULL;
+    elem->prev = NULL;
+    elem->y = y;
+    data->text_color = text_color;
+    data->background_color = background_color;
+    strncpy(data->text, text, 255);
+}
+
+
+
+typedef struct GobApp GobApp;
+
+void gob_init_app(GobApp *app, uint16_t *text_buffer, int32_t width, int32_t height, KernelTerminalColors background_color)
+{
+    app->screen.text_buffer = text_buffer;
+    app->screen.width = width;
+    app->screen.height = height;
+    app->default_background_color = background_color;
+    app->root = NULL;
+}
+/// @brief Perform full redraw of the entire screen
+/// @param app
+void gob_app_render(GobApp *app)
+{
+    // app has full control over text buffer
+    // so we can clear it as we want
+    gob_term_clear(&app->screen, app->default_background_color);
+    GobElement *root = app->root;
+    while (root != NULL)
+    {
+        gob_render_element(root);
+        root = root->next;
+    }
+    // draw the status bar
+    gob_term_line(&app->screen, 0, app->screen.height - 1, app->screen.width, 'c', EC_Magenta, EC_Black);
+    gob_term_text(&app->screen, 0, app->screen.height - 1, app->status_text, strnlen(app->status_text, 80), EC_Magenta, EC_Yellow);
+}
+
+void gob_app_set_status(GobApp *app, const char *text)
+{
+    strncpy(app->status_text, text, 80);
+    // draw the status bar
+    gob_term_line(&app->screen, 0, app->screen.height - 1, app->screen.width, ' ', EC_Magenta, EC_Black);
+    gob_term_text(&app->screen, 0, app->screen.height - 1, app->status_text, strnlen(app->status_text, 80), EC_Magenta, EC_Yellow);
+}
+
+void gob_app_add_element(GobApp *app, GobElement *elem)
+{
+    elem->app = app;
+    if (app->root == NULL)
+    {
+        app->root = elem;
+        return;
+    }
+    GobElement *prev = app->root;
+    GobElement *start = prev->next;
+    while (start != NULL)
+    {
+        prev = start;
+        start = start->next;
+    }
+    prev->next = elem;
+    elem->prev = prev;
+    elem->next = NULL;
+}
+
 int main(struct KernelExports *kernel_exports)
 {
 
+    GobApp app;
+    GobElement input_temp_label;
+    gob_init_label(&input_temp_label, "(5.5 / 2) * (24 / 8) - 232 * (9 + 2)", 20, 5, EC_Blue, EC_White);
+    gob_init_app(&app, get_text_buffer_address(), 80, 25, EC_Green);
+    gob_app_add_element(&app, &input_temp_label);
+    gob_app_set_status(&app, "hello looser!");
+    gob_app_render(&app);
+
+    kernel_exports->wait_for_keypress();
+
     // buffer for the entire input string
     // char input_buffer[255] = "(5.35 / 2) * (24.8 / 8) - 232 * (9 + 2)";
-    char input_buffer[255] = "232 * 11";
+    char input_buffer[255] = "(5.5 / 2) * (24 / 8) - 232 * (9 + 2)";
     char *error_message = 0;
     char fixed_str_buffer[33];
 
     char output_buffer[255];
-    gob_sprintf(output_buffer, "dec: %u, oct: %o,hex: %x. Also a float: %f but %s\n", 1234, 1234, 1234, 69.4201f, input_buffer);
-    kernel_exports->printf(output_buffer);
-    kernel_exports->wait_for_keypress();
-
-    double mul_val3;
-    int mul_val1;
-    int mul_val2;
-    int match_count = gob_sscanf("23.4", "%f", &mul_val3);
-    memset(output_buffer, 0, sizeof(input_buffer));
-    gob_sprintf(output_buffer, "\nx = %x;f = %f;\n", mul_val3, mul_val3);
-    kernel_exports->printf(output_buffer);
-    kernel_exports->printf(strerror(errno));
-    kernel_exports->wait_for_keypress();
-
-    kernel_exports->printf("%s\n", fixed_to_str(fixed_mul(DECIMAL(232, 0), DECIMAL(11, 0)), fixed_str_buffer));
-
     CalcExpression operation_array[100];
     int32_t operation_array_len = 0;
     if (!parse_input(input_buffer, sizeof(input_buffer), &error_message, operation_array, 100, &operation_array_len))
     {
-        kernel_exports->printf(error_message);
+        gob_app_set_status(&app, error_message);
     }
     else
     {
-        kernel_exports->printf("parsed correctly\n");
+        gob_app_set_status(&app, "parsed correctly");
         kernel_exports->printf("len: %s\n", itoa(operation_array_len, fixed_str_buffer, 10));
         for (int32_t i = 0; i < operation_array_len; i++)
         {
             switch (operation_array[i].type)
             {
             case ECET_Constant:
-                kernel_exports->printf("%s ", fixed_to_str(operation_array[i].value.constant, fixed_str_buffer));
+                memset(output_buffer, 0, sizeof(output_buffer));
+                gob_sprintf(output_buffer, "%i ", operation_array[i].value.constant);
                 break;
             case ECET_Operator:
-                kernel_exports->printf("%c ", operator_to_char(operation_array[i].value.operation));
+                gob_sprintf(output_buffer, "%c ", operator_to_char(operation_array[i].value.operation));
                 break;
             case ECET_BracketOpen:
-                kernel_exports->printf("?(? ");
+                gob_sprintf(output_buffer, "( ");
                 break;
             default:
-                kernel_exports->printf("??? ");
+                gob_sprintf(output_buffer, "???");
             }
+            kernel_exports->printf(output_buffer);
         }
-        fixed_t res;
+        number_t res;
         if (!execute(operation_array, operation_array_len, &res, &error_message))
         {
             kernel_exports->printf(error_message);
         }
         else
         {
-            kernel_exports->printf("\n%s = %s\n", input_buffer, fixed_to_str(res, fixed_str_buffer));
+            memset(output_buffer, 0, sizeof(output_buffer));
+            gob_sprintf(output_buffer, "\n%s = %d", input_buffer, res);
+            kernel_exports->printf(output_buffer);
         }
     }
     kernel_exports->wait_for_keypress();

@@ -4,6 +4,7 @@
 #include <math.h>
 #include <errno.h>
 #include <file.h>
+#include <scan_helpers.h>
 #include <ctype.h>
 
 #define KMAX 2048

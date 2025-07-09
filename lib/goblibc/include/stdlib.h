@@ -53,8 +53,8 @@ char *itoa(int value, char *buffer, int radix);
 char *int_to_str(int32_t value, char *buffer, int32_t radix, uint32_t *len);
 
 /// @brief Convert a string input into a floating point value. This is a nonstandard function so might behave out of spec
-/// @param  
-/// @return 
+/// @param
+/// @return
 double atof(const char *);
 
 /// @brief Convert a string into a floating point
@@ -81,3 +81,5 @@ long double strtold(const char *start, char **end);
 /// @param prec Precision
 /// @return Parsed value
 static long double strtox(const char *s, char **p, int prec);
+
+long long stroll(const char *start, char **end, int base);

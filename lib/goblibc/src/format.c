@@ -1,4 +1,5 @@
 #include <format.h>
+#include <scan_helpers.h>
 #include <stdarg.h>
 #include <float.h>
 #include <math.h>
@@ -8,6 +9,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <wchar.h>
+#include <stdbool.h>
 /* Some useful macros */
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
@@ -68,6 +70,7 @@ enum
 
 #define S(x) [(x) - 'A']
 
+/// @brief Collection of all the states that are used by the formating symbols.
 static const unsigned char states[]['z' - 'A' + 1] = {
     {
         /* 0: bare types */
@@ -307,19 +310,38 @@ static char *gob_format_unsigned(uintmax_t value, char *str)
     return str;
 }
 
+// Used in place of the goto to finish up the number formatting blocks
+#define IFMT_TAIL(xp, p, mod_flag, arg, a, z) \
+    if (xp)                                   \
+    {                                         \
+        mod_flag &= ~ZERO_PAD;                \
+    }                                         \
+    \               
+    if (!arg.i && !p)                         \
+    {                                         \
+        a = z;                                \
+        break;                                \
+    }                                         \
+    p = MAX(p, z - a + !arg.i);
+
+
 int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_arg, int *nl_type)
 {
-    char *a;
-    char *z;
+    char *fmt_start;
+    char *fmt_end;
     char *fmt_ptr = (char *)fmt;
 
-    unsigned l10n = 0, mod_flag;
-    int w, p, xp;
+    uint32_t using_position = 0;
+    uint32_t mod_flag;
+    int32_t format_width;
+    int32_t precision;
+    int32_t use_precision;
     union arg arg;
-    int arg_pos;
-    unsigned st, ps;
-    int output_count = 0;
-    int len = 0;
+    int32_t arg_pos;
+    uint32_t format_state;
+    uint32_t prev_format_state;
+    int32_t output_count = 0;
+    int32_t len = 0;
     size_t i;
     char buf[sizeof(uintmax_t) * 3];
     const char *prefix;
@@ -345,30 +367,37 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
             break;
         }
 
-        /* Handle literal text and %% format specifiers */
-        for (a = fmt_ptr; *fmt_ptr != '\0' && *fmt_ptr != '%'; fmt_ptr++)
+        // find format specifier start
+        for (fmt_start = fmt_ptr; *fmt_ptr != '\0' && *fmt_ptr != '%'; fmt_ptr++)
             ;
-        for (z = fmt_ptr; fmt_ptr[0] == '%' && fmt_ptr[1] == '%'; z++, fmt_ptr += 2)
+        // check for "%%", which should just print '%' and skip past '%'
+        // we do this by checking if current pair of symbols is '%%' and if it is, skip past it
+        // only advance end by one so that we would skip the '%' sign
+        for (fmt_end = fmt_ptr; fmt_ptr[0] == '%' && fmt_ptr[1] == '%'; fmt_end++, fmt_ptr += 2)
             ;
-        if (z - a > INT_MAX - output_count)
+        if (fmt_end - fmt_start > INT_MAX - output_count)
         {
             errno = EOVERFLOW;
             return -1;
         }
-        len = z - a;
+        // if this len is 0 then we have nothing to output so we can go and deal with actual formatting symbols
+        len = fmt_end - fmt_start;
         if (file != NULL)
         {
-            out(file, a, len);
+            out(file, fmt_start, len);
         }
         if (len > 0)
         {
             continue;
         }
 
+        // %1$d is used for positional arguments
+        // did you know printf could do that? cause i didn't
         if (isdigit(fmt_ptr[1]) && fmt_ptr[2] == '$')
         {
-            l10n = 1;
+            using_position = 1;
             arg_pos = fmt_ptr[1] - '0';
+            // skip by 3 to move past positional data
             fmt_ptr += 3;
         }
         else
@@ -377,32 +406,44 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
             fmt_ptr++;
         }
 
-        /* Read modifier flags */
+        // read modifier flag symbols
+        // first we check if it's a symbol from ' ' to '@'
+        // then we check if it fits the mask checks
+        // and if so, use that mask value to set the flag
+        // a bit awkward if you ask me
         for (mod_flag = 0; (unsigned)*fmt_ptr - ' ' < 32 && (FLAGMASK & (1U << (*fmt_ptr - ' '))); fmt_ptr++)
         {
             mod_flag |= 1U << (*fmt_ptr - ' ');
         }
 
-        /* Read field width */
+        // read how much space in the string to reserve for the next input
         if (*fmt_ptr == '*')
         {
+            // check if it's another positional approach for specifying the value
             if (isdigit(fmt_ptr[1]) && fmt_ptr[2] == '$')
             {
-                l10n = 1;
+                // to avoid duplicating the entire function
+                // this function either fills out the arg array or uses arg array
+                // depending on whether it has destination parameter
+                using_position = 1;
                 if (file == NULL)
                 {
+                    // store value for positional argument in the array at the right position
                     nl_type[fmt_ptr[1] - '0'] = INT;
-                    w = 0;
+                    format_width = 0;
                 }
                 else
                 {
-                    w = nl_arg[fmt_ptr[1] - '0'].i;
+                    // otherwise read that value
+                    format_width = nl_arg[fmt_ptr[1] - '0'].i;
                 }
                 fmt_ptr += 3;
             }
-            else if (!l10n)
+            else if (!using_position)
             {
-                w = file ? va_arg(*args, int) : 0;
+                // read next value out of argument array, or if we are no actually
+                // print, then do nothing
+                format_width = file ? va_arg(*args, int) : 0;
                 fmt_ptr++;
             }
             else
@@ -410,34 +451,42 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
                 errno = EINVAL;
                 return -1;
             }
-            if (w < 0)
-                mod_flag |= LEFT_ADJ, w = -w;
+            if (format_width < 0)
+            {
+                // negative values mean left justified text
+                // so we mark it as such, and flip the sign for better operation
+                mod_flag |= LEFT_ADJ, format_width = -format_width;
+            }
         }
-        else if ((w = getint(&fmt_ptr)) < 0)
+        // c++ has better syntax for this but this is not c++
+        // check if current integer value(for '%69s' syntax as opposed to '%*s' syntax)
+        // is actually a valid integer number
+        else if ((format_width = getint(&fmt_ptr)) < 0)
         {
             errno = EOVERFLOW;
             return -1;
         }
 
-        /* Read precision */
+        // check the floating value precision formatting
         if (*fmt_ptr == '.' && fmt_ptr[1] == '*')
         {
+            // once more, check if the values are a passed positional argument
             if (isdigit(fmt_ptr[2]) && fmt_ptr[3] == '$')
             {
                 if (file == NULL)
                 {
                     nl_type[fmt_ptr[2] - '0'] = INT;
-                    p = 0;
+                    precision = 0;
                 }
                 else
                 {
-                    p = nl_arg[fmt_ptr[2] - '0'].i;
+                    precision = nl_arg[fmt_ptr[2] - '0'].i;
                 }
                 fmt_ptr += 4;
             }
-            else if (!l10n)
+            else if (!using_position)
             {
-                p = file ? va_arg(*args, int) : 0;
+                precision = file ? va_arg(*args, int) : 0;
                 fmt_ptr += 2;
             }
             else
@@ -445,40 +494,44 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
                 errno = EINVAL;
                 return -1;
             }
-            xp = (p >= 0);
+            use_precision = (precision >= 0);
         }
+        // otherwise we just read the precision from the string itself
         else if (*fmt_ptr == '.')
         {
             fmt_ptr++;
-            p = getint(&fmt_ptr);
-            xp = 1;
+            precision = getint(&fmt_ptr);
+            use_precision = 1;
         }
         else
         {
-            p = -1;
-            xp = 0;
+            // if none specified, don't use precision
+            precision = -1;
+            use_precision = 0;
         }
 
-        /* Format specifier state machine */
-        st = 0;
+        // this is a fairly odd approach but it works by having a tree of options
+        // and in the loop it picks paths in the tree
+        format_state = 0;
         do
         {
+            // check if it's a valid character
             if (OOB(*fmt_ptr))
             {
                 errno = EINVAL;
                 return -1;
             }
-            ps = st;
-            st = states[st][(*fmt_ptr++) - 'A'];
-        } while (st - 1 < STOP);
-        if (!st)
+            prev_format_state = format_state;
+            format_state = states[format_state][(*fmt_ptr++) - 'A'];
+        } while (format_state - 1 < STOP);
+        if (!format_state)
         {
             errno = EINVAL;
             return -1;
         }
 
         /* Check validity of argument type (nl/normal) */
-        if (st == NOARG)
+        if (format_state == NOARG)
         {
             if (arg_pos >= 0)
             {
@@ -492,7 +545,7 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
             {
                 if (file == NULL)
                 {
-                    nl_type[arg_pos] = st;
+                    nl_type[arg_pos] = format_state;
                 }
                 else
                 {
@@ -501,7 +554,7 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
             }
             else if (file != NULL)
             {
-                pop_arg(&arg, st, args);
+                pop_arg(&arg, format_state, args);
             }
             else
             {
@@ -509,6 +562,7 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
             }
         }
 
+        // rest of the code is only viable if we are are actually printing values
         if (file == NULL)
             continue;
 
@@ -521,16 +575,16 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
         //     return -1;
         // }
 
-        z = buf + sizeof(buf);
+        fmt_end = buf + sizeof(buf);
         prefix = "-+   0X0x";
         pl = 0;
         t = fmt_ptr[-1];
 
         /* Transform ls,lc -> S,C */
-        if (ps && (t & 15) == 3)
+        if (prev_format_state && (t & 15) == 3)
             t &= ~32;
 
-        /* - and 0 flags are mutually exclusive */
+        // because left adjustment and zero padding are mutually exclusive, disable zero padding if both are used
         if (mod_flag & LEFT_ADJ)
         {
             mod_flag &= ~ZERO_PAD;
@@ -538,8 +592,10 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
 
         switch (t)
         {
+            // n is a modifier that will print out current string position
+            // as such we store the current output_count converted into required type
         case 'n':
-            switch (ps)
+            switch (prev_format_state)
             {
             case BARE:
                 *(int *)arg.p = output_count;
@@ -564,22 +620,25 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
                 break;
             }
             continue;
+            // pointer address
         case 'p':
-            p = MAX(p, 2 * sizeof(void *));
+            precision = MAX(precision, 2 * sizeof(void *));
             t = 'x';
             mod_flag |= ALT_FORM;
+            // fall down because pointer address uses HEX formatting
         case 'x':
         case 'X':
-            a = gob_format_hex(arg.i, z, t & 32);
+            // format the value as hex
+            fmt_start = gob_format_hex(arg.i, fmt_end, t & 32);
             if (arg.i && (mod_flag & ALT_FORM))
             {
                 prefix += (t >> 4), pl = 2;
             }
             goto ifmt_tail;
         case 'o':
-            a = gob_format_octal(arg.i, z);
-            if ((mod_flag & ALT_FORM) && p < z - a + 1)
-                p = z - a + 1;
+            fmt_start = gob_format_octal(arg.i, fmt_end);
+            if ((mod_flag & ALT_FORM) && precision < fmt_end - fmt_start + 1)
+                precision = fmt_end - fmt_start + 1;
             goto ifmt_tail;
         case 'd':
         case 'i':
@@ -599,40 +658,40 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
             else
                 pl = 0;
         case 'u':
-            a = gob_format_unsigned(arg.i, z);
+            fmt_start = gob_format_unsigned(arg.i, fmt_end);
         ifmt_tail:
-            if (xp && p < 0)
+            if (use_precision && precision < 0)
             {
                 errno = EOVERFLOW;
                 return -1;
             }
-            if (xp)
+            if (use_precision)
                 mod_flag &= ~ZERO_PAD;
-            if (!arg.i && !p)
+            if (!arg.i && !precision)
             {
-                a = z;
+                fmt_start = fmt_end;
                 break;
             }
-            p = MAX(p, z - a + !arg.i);
+            precision = MAX(precision, fmt_end - fmt_start + !arg.i);
             break;
         narrow_c:
         case 'c':
-            *(a = z - (p = 1)) = arg.i;
+            *(fmt_start = fmt_end - (precision = 1)) = arg.i;
             mod_flag &= ~ZERO_PAD;
             break;
         case 'm':
             if (1)
-                a = strerror(errno);
+                fmt_start = strerror(errno);
             else
             case 's':
-                a = arg.p ? arg.p : "(null)";
-            z = a + strnlen(a, p < 0 ? INT_MAX : p);
-            if (p < 0 && *z)
+                fmt_start = arg.p ? arg.p : "(null)";
+            fmt_end = fmt_start + strnlen(fmt_start, precision < 0 ? INT_MAX : precision);
+            if (precision < 0 && *fmt_end)
             {
                 errno = EOVERFLOW;
                 return -1;
             }
-            p = z - a;
+            precision = fmt_end - fmt_start;
             mod_flag &= ~ZERO_PAD;
             break;
         case 'C':
@@ -641,10 +700,10 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
             wc[0] = arg.i;
             wc[1] = 0;
             arg.p = wc;
-            p = -1;
+            precision = -1;
         case 'S':
             ws = arg.p;
-            for (i = len = 0; i < p && *ws && (len = wctomb(mb, *ws++)) >= 0 && len <= p - i; i += len)
+            for (i = len = 0; i < precision && *ws && (len = wctomb(mb, *ws++)) >= 0 && len <= precision - i; i += len)
                 ;
             if (len < 0)
             {
@@ -655,15 +714,15 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
                 errno = EOVERFLOW;
                 return -1;
             }
-            p = i;
-            pad(file, ' ', w, p, mod_flag);
+            precision = i;
+            pad(file, ' ', format_width, precision, mod_flag);
             ws = arg.p;
-            for (i = 0; i < 0U + p && *ws && i + (len = wctomb(mb, *ws++)) <= p; i += len)
+            for (i = 0; i < 0U + precision && *ws && i + (len = wctomb(mb, *ws++)) <= precision; i += len)
             {
                 out(file, mb, len);
             }
-            pad(file, ' ', w, p, mod_flag ^ LEFT_ADJ);
-            len = w > p ? w : p;
+            pad(file, ' ', format_width, precision, mod_flag ^ LEFT_ADJ);
+            len = format_width > precision ? format_width : precision;
             continue;
         case 'e':
         case 'f':
@@ -673,12 +732,12 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
         case 'F':
         case 'G':
         case 'A':
-            if (xp && p < 0)
+            if (use_precision && precision < 0)
             {
                 errno = EOVERFLOW;
                 return -1;
             }
-            len = gob_format_float(file, arg.f, w, p, mod_flag, t, ps);
+            len = gob_format_float(file, arg.f, format_width, precision, mod_flag, t, prev_format_state);
             if (len < 0)
             {
                 errno = EOVERFLOW;
@@ -687,36 +746,36 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
             continue;
         }
 
-        if (p < z - a)
-            p = z - a;
-        if (p > INT_MAX - pl)
+        if (precision < fmt_end - fmt_start)
+            precision = fmt_end - fmt_start;
+        if (precision > INT_MAX - pl)
         {
             errno = EOVERFLOW;
             return -1;
         }
-        if (w < pl + p)
-            w = pl + p;
-        if (w > INT_MAX - output_count)
+        if (format_width < pl + precision)
+            format_width = pl + precision;
+        if (format_width > INT_MAX - output_count)
         {
             errno = EOVERFLOW;
             return -1;
         }
 
-        pad(file, ' ', w, pl + p, mod_flag);
+        pad(file, ' ', format_width, pl + precision, mod_flag);
         out(file, prefix, pl);
-        pad(file, '0', w, pl + p, mod_flag ^ ZERO_PAD);
-        pad(file, '0', p, z - a, 0);
-        out(file, a, z - a);
-        pad(file, ' ', w, pl + p, mod_flag ^ LEFT_ADJ);
+        pad(file, '0', format_width, pl + precision, mod_flag ^ ZERO_PAD);
+        pad(file, '0', precision, fmt_end - fmt_start, 0);
+        out(file, fmt_start, fmt_end - fmt_start);
+        pad(file, ' ', format_width, pl + precision, mod_flag ^ LEFT_ADJ);
 
-        len = w;
+        len = format_width;
     }
 
     if (file != NULL)
     {
         return output_count;
     }
-    if (!l10n)
+    if (!using_position)
     {
         return 0;
     }

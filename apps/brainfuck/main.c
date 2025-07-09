@@ -2,7 +2,7 @@
 #include <stdbool.h>
 #include <endian.h>
 #include <string.h>
-#include <kernel.h>
+#include <estros.h>
 #include <stdlib.h>
 
 bool isalphanum(int c)

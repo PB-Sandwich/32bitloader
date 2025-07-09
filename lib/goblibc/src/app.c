@@ -1,4 +1,4 @@
-#include <kernel.h>
+#include <estros.h>
 #include <stdlib.h>
 extern int main(struct KernelExports *kernel_exports);
 

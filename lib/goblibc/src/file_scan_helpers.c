@@ -1,7 +1,7 @@
 #include <file.h>
 #include <stdio.h>
 #include <string.h>
-
+#include <scan_helpers.h>
 // this is just a placeholder. remove this ifdef and write actual file functions here
 
 void scan_help_file_from_string(FILE *file, const char *str)

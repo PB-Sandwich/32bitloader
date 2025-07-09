@@ -1,6 +1,5 @@
 #include <ctype.h>
 
-
 int tolower(int c)
 {
     return (c >= 'A' && c <= 'Z') ? (c + ('a' - 'A')) : c;
@@ -29,4 +28,14 @@ int isdigit(int c)
 int isspace(int c)
 {
     return c == ' ' || c == '\t';
+}
+
+int is_valid_hex(char c)
+{
+    return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+}
+
+int is_valid_bin(char c)
+{
+    return c == '0' || c == '1';
 }

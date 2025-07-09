@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <file.h>
+#include <scan_helpers.h>
 
 /* Lookup table for digit values. -1==255>=36 -> invalid */
 

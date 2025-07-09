@@ -2,6 +2,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
+#include <errno.h>
 
 uint8_t *heap = NULL;
 uint32_t heap_size = 0;
@@ -283,4 +285,122 @@ char *int_to_str(int32_t value, char *buffer, int32_t radix, uint32_t *num_len)
         *num_len = (uint32_t)len;
     }
     return buffer;
+}
+
+long long stroll(const char *start, char **end, int base)
+{
+    const char *start_cpy = start;
+    char current;
+    int sign = 1;
+    // skip whitespace
+    do
+    {
+        current = *start++;
+    } while (isspace(current));
+
+    if (current == '-')
+    {
+        sign = -1;
+        current = *start++;
+    }
+    // if base not specified check if it's base 16
+    if ((base == 0 || base == 16) && (current == '0' && (*start == 'x' || *start == 'X')) && is_valid_hex(start[1]))
+    {
+        current = start[1];
+        start += 2;
+        base = 16;
+    }
+
+    // if base not specified check if it's base 2
+    if ((base == 0 || base == 16) && (current == '0' && (*start == 'b' || *start == 'B')) && is_valid_hex(start[1]))
+    {
+        current = start[1];
+        start += 2;
+        base = 16;
+    }
+
+    // otherwise maybe it starts with 0? assume base 8 then
+    if (base == 0)
+    {
+        base = current == '0' ? 8 : 10;
+    }
+
+    // base 1 makes no sense and english alphabet doesn't allow for anything more than base 36
+    if (base < 2 || base > 36)
+    {
+        *end = start_cpy;
+        errno = EINVAL;
+        return -1;
+    }
+
+    /*
+     * Explanation from OpenBSD:
+     * Compute the cutoff value between legal numbers and illegal
+     * numbers.  That is the largest legal value, divided by the
+     * base.  An input number that is greater than this value, if
+     * followed by a legal input character, is too big.  One that
+     * is equal to this value may be valid or not; the limit
+     * between valid and invalid numbers is then based on the last
+     * digit.  For instance, if the range for quads is
+     * [-9223372036854775808..9223372036854775807] and the input base
+     * is 10, cutoff will be set to 922337203685477580 and cutlim to
+     * either 7 (neg==0) or 8 (neg==1), meaning that if we have
+     * accumulated a value > 922337203685477580, or equal but the
+     * next digit is > 7 (or 8), the number is too big, and we will
+     * return a range error.
+     *
+     * Set 'any' if any `digits' consumed; make it negative to indicate
+     * overflow.
+     */
+    unsigned long long cutoff = sign == -1 ? (unsigned long long)-(LLONG_MIN - LLONG_MAX) + LLONG_MAX : LLONG_MAX;
+    unsigned long long cutlim = cutoff % base;
+    unsigned long long result = 0;
+    int32_t did_read_any = -1;
+    for (; is_valid_hex(current); current = *start++)
+    {
+        long long temp;
+        if (isdigit(current))
+        {
+            temp += current - '0';
+        }
+        else if (current >= 'A' && current <= 'Z')
+        {
+            temp += 'A' - current;
+        }
+        else if (current >= 'a' && current <= 'z')
+        {
+            temp += 'a' - current;
+        }
+        // check if value out of bounds for this base, if so just assume it's not part of the number
+        if (temp >= base)
+        {
+            break;
+        }
+        // check if value is bigger than max allowed
+        if (did_read_any < 0 || result > cutoff || (result == cutoff && temp > cutlim))
+        {
+            did_read_any = -1;
+        }
+        else
+        {
+            did_read_any = 1;
+            result *= base;
+            result += temp;
+        }
+    }
+    if (did_read_any < 0)
+    {
+        result = sign == -1 ? LLONG_MIN : LLONG_MAX;
+        errno = ERANGE;
+    }
+    else if (did_read_any > 0)
+    {
+        result = -result;
+    }
+    if (end != NULL)
+    {
+        *end = (char *)(did_read_any > 0 ? start - 1 : start_cpy);
+    }
+
+    return result;
 }

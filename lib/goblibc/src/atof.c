@@ -25,6 +25,8 @@ static long double strtox(const char *s, char **p, int prec)
     return y;
 }
 
+
+
 float strtof(const char *s, char **p)
 {
     return strtox(s, p, 0);
