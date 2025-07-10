@@ -144,6 +144,8 @@ enum Colors
 /// @brief Colors available to use in the text buffer
 typedef enum Colors KernelTerminalColors;
 
+typedef enum Keycode KernelKeycode;
+
 /// @brief Struct exposing functions for interacting with kernel
 struct KernelExports
 {
