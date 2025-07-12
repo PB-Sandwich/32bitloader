@@ -199,124 +199,136 @@ void* harddrive_load_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uin
     return buffer;
 }
 
+uint32_t alloc_block()
+{
+    uint32_t block = super_block.n_blocks;
+    super_block.n_blocks++;
+
+    return block; // Out of space
+}
+
+
 void harddrive_write_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uint32_t num_blocks)
 {
     for (uint32_t i = 0; i < num_blocks; i++) {
-
         uint32_t block_n = (pos + i * BLOCK_SIZE) / BLOCK_SIZE;
         uint32_t real_block = 0xFFFFFFFF;
 
+        // --- Direct blocks ---
         if (block_n < NUM_DIRECT_BLOCKS) {
+            if (blocks[block_n] == 0) {
+                blocks[block_n] = alloc_block();
+            }
             real_block = blocks[block_n];
-        } else if (block_n < NUM_DIRECT_BLOCKS + PTRS_PER_BLOCK) {
-            // Single indirect
+        }
+
+        // --- Single Indirect ---
+        else if (block_n < NUM_DIRECT_BLOCKS + PTRS_PER_BLOCK) {
             uint32_t index = block_n - NUM_DIRECT_BLOCKS;
-            uint32_t single_ptrs[PTRS_PER_BLOCK];
+            uint32_t single_ptrs[PTRS_PER_BLOCK] = {0};
+
+            if (blocks[SINGLE_INDIRECT_INDEX] == 0) {
+                blocks[SINGLE_INDIRECT_INDEX] = alloc_block();
+            }
+
             vfs_seek(harddrive, blocks[SINGLE_INDIRECT_INDEX] * BLOCK_SIZE, VFS_BEG);
             vfs_read(harddrive, single_ptrs, BLOCK_SIZE);
+
+            if (single_ptrs[index] == 0) {
+                single_ptrs[index] = alloc_block();
+                vfs_seek(harddrive, blocks[SINGLE_INDIRECT_INDEX] * BLOCK_SIZE, VFS_BEG);
+                vfs_write(harddrive, single_ptrs, BLOCK_SIZE);
+            }
+
             real_block = single_ptrs[index];
-        } else if (block_n < NUM_DIRECT_BLOCKS + PTRS_PER_BLOCK + PTRS_PER_BLOCK * PTRS_PER_BLOCK) {
-            // Double indirect
+        }
+
+        // --- Double Indirect ---
+        else if (block_n < NUM_DIRECT_BLOCKS + PTRS_PER_BLOCK + PTRS_PER_BLOCK * PTRS_PER_BLOCK) {
             uint32_t index = block_n - NUM_DIRECT_BLOCKS - PTRS_PER_BLOCK;
             uint32_t l1 = index / PTRS_PER_BLOCK;
             uint32_t l2 = index % PTRS_PER_BLOCK;
 
-            uint32_t double_ptrs[PTRS_PER_BLOCK];
-            uint32_t single_ptrs[PTRS_PER_BLOCK];
+            uint32_t double_ptrs[PTRS_PER_BLOCK] = {0};
+            uint32_t single_ptrs[PTRS_PER_BLOCK] = {0};
+
+            if (blocks[DOUBLE_INDIRECT_INDEX] == 0) {
+                blocks[DOUBLE_INDIRECT_INDEX] = alloc_block();
+            }
 
             vfs_seek(harddrive, blocks[DOUBLE_INDIRECT_INDEX] * BLOCK_SIZE, VFS_BEG);
             vfs_read(harddrive, double_ptrs, BLOCK_SIZE);
 
+            if (double_ptrs[l1] == 0) {
+                double_ptrs[l1] = alloc_block();
+                vfs_seek(harddrive, blocks[DOUBLE_INDIRECT_INDEX] * BLOCK_SIZE, VFS_BEG);
+                vfs_write(harddrive, double_ptrs, BLOCK_SIZE);
+            }
+
             vfs_seek(harddrive, double_ptrs[l1] * BLOCK_SIZE, VFS_BEG);
             vfs_read(harddrive, single_ptrs, BLOCK_SIZE);
 
+            if (single_ptrs[l2] == 0) {
+                single_ptrs[l2] = alloc_block();
+                vfs_seek(harddrive, double_ptrs[l1] * BLOCK_SIZE, VFS_BEG);
+                vfs_write(harddrive, single_ptrs, BLOCK_SIZE);
+            }
+
             real_block = single_ptrs[l2];
-        } else {
-            // Triple indirect
-            uint32_t index = block_n - NUM_DIRECT_BLOCKS - PTRS_PER_BLOCK - PTRS_PER_BLOCK * PTRS_PER_BLOCK;
-            uint32_t l1 = index / (PTRS_PER_BLOCK * PTRS_PER_BLOCK);
-            uint32_t l2 = (index / PTRS_PER_BLOCK) % PTRS_PER_BLOCK;
-            uint32_t l3 = index % PTRS_PER_BLOCK;
+        }
 
-            uint32_t triple_ptrs[PTRS_PER_BLOCK];
-            uint32_t double_ptrs[PTRS_PER_BLOCK];
-            uint32_t single_ptrs[PTRS_PER_BLOCK];
-
-            vfs_seek(harddrive, blocks[TRIPLE_INDIRECT_INDEX] * BLOCK_SIZE, VFS_BEG);
-            vfs_read(harddrive, triple_ptrs, BLOCK_SIZE);
-
-            vfs_seek(harddrive, triple_ptrs[l1] * BLOCK_SIZE, VFS_BEG);
-            vfs_read(harddrive, double_ptrs, BLOCK_SIZE);
-
-            vfs_seek(harddrive, double_ptrs[l2] * BLOCK_SIZE, VFS_BEG);
-            vfs_read(harddrive, single_ptrs, BLOCK_SIZE);
-
-            real_block = single_ptrs[l3];
+        // --- Triple Indirect ---
+        else {
+            // uint32_t index = block_n - NUM_DIRECT_BLOCKS - PTRS_PER_BLOCK - PTRS_PER_BLOCK * PTRS_PER_BLOCK;
+            // uint32_t l1 = index / (PTRS_PER_BLOCK * PTRS_PER_BLOCK);
+            // uint32_t l2 = (index / PTRS_PER_BLOCK) % PTRS_PER_BLOCK;
+            // uint32_t l3 = index % PTRS_PER_BLOCK;
+            //
+            // uint32_t triple_ptrs[PTRS_PER_BLOCK] = {0};
+            // uint32_t double_ptrs[PTRS_PER_BLOCK] = {0};
+            // uint32_t single_ptrs[PTRS_PER_BLOCK] = {0};
+            //
+            // if (blocks[TRIPLE_INDIRECT_INDEX] == 0) {
+            //     blocks[TRIPLE_INDIRECT_INDEX] = alloc_block();
+            // }
+            //
+            // vfs_seek(harddrive, blocks[TRIPLE_INDIRECT_INDEX] * BLOCK_SIZE, VFS_BEG);
+            // vfs_read(harddrive, triple_ptrs, BLOCK_SIZE);
+            //
+            // if (triple_ptrs[l1] == 0) {
+            //     triple_ptrs[l1] = alloc_block();
+            //     vfs_seek(harddrive, blocks[TRIPLE_INDIRECT_INDEX] * BLOCK_SIZE, VFS_BEG);
+            //     vfs_write(harddrive, triple_ptrs, BLOCK_SIZE);
+            // }
+            //
+            // vfs_seek(harddrive, triple_ptrs[l1] * BLOCK_SIZE, VFS_BEG);
+            // vfs_read(harddrive, double_ptrs, BLOCK_SIZE);
+            //
+            // if (double_ptrs[l2] == 0) {
+            //     double_ptrs[l2] = alloc_block();
+            //     vfs_seek(harddrive, triple_ptrs[l1] * BLOCK_SIZE, VFS_BEG);
+            //     vfs_write(harddrive, double_ptrs, BLOCK_SIZE);
+            // }
+            //
+            // vfs_seek(harddrive, double_ptrs[l2] * BLOCK_SIZE, VFS_BEG);
+            // vfs_read(harddrive, single_ptrs, BLOCK_SIZE);
+            //
+            // if (single_ptrs[l3] == 0) {
+            //     single_ptrs[l3] = alloc_block();
+            //     vfs_seek(harddrive, double_ptrs[l2] * BLOCK_SIZE, VFS_BEG);
+            //     vfs_write(harddrive, single_ptrs, BLOCK_SIZE);
+            // }
+            //
+            // real_block = single_ptrs[l3];
         }
 
         if (real_block == 0 || real_block == 0xFFFFFFFF) {
-            return;
+            return; // out of space
         }
-
-        void* temp = realloc(buffer, (i * BLOCK_SIZE) + BLOCK_SIZE);
-        if (temp == NULL) {
-            return;
-        }
-        buffer = temp;
 
         vfs_seek(harddrive, real_block * BLOCK_SIZE, VFS_BEG);
-        vfs_write(harddrive, buffer + (i * BLOCK_SIZE), BLOCK_SIZE);
+        vfs_write(harddrive, (uint8_t*)buffer + (i * BLOCK_SIZE), BLOCK_SIZE);
     }
-
-    return;
-}
-#define NUM_DIRECT_BLOCKS 10
-#define PTRS_PER_BLOCK (BLOCK_SIZE / sizeof(uint32_t))
-
-// Bitmap sizes
-#define BLOCK_BITMAP_SIZE (0xffffffff / BLOCK_SIZE / 8)
-#define INODE_BITMAP_SIZE (MAX_INODES / 8)
-
-// Offsets
-#define BLOCK_BITMAP_OFFSET (SUPER_BLOCK_OFFSET + BLOCK_SIZE)
-#define INODE_BITMAP_OFFSET (BLOCK_BITMAP_OFFSET + BLOCK_BITMAP_SIZE)
-#define INODE_TABLE_OFFSET (INODE_BITMAP_OFFSET + INODE_BITMAP_SIZE)
-
-uint8_t* block_bitmap = NULL;
-
-uint32_t alloc_block()
-{
-    // Load bitmap once
-    if (block_bitmap == NULL) {
-        block_bitmap = (uint8_t*)malloc(BLOCK_BITMAP_SIZE);
-        vfs_seek(harddrive, BLOCK_BITMAP_OFFSET, VFS_BEG);
-        vfs_read(harddrive, block_bitmap, BLOCK_BITMAP_SIZE);
-    }
-
-    for (uint32_t i = 0; i < BLOCK_BITMAP_SIZE; ++i) {
-        if (block_bitmap[i] != 0xFF) {
-            for (uint8_t bit = 0; bit < 8; ++bit) {
-                if (!(block_bitmap[i] & (1 << bit))) {
-                    // Mark as used
-                    block_bitmap[i] |= (1 << bit);
-                    uint32_t block_number = i * 8 + bit;
-
-                    // Write back just this byte
-                    vfs_seek(harddrive, BLOCK_BITMAP_OFFSET + i, VFS_BEG);
-                    vfs_write(harddrive, &block_bitmap[i], 1);
-
-                    // Optionally: zero the new block
-                    uint8_t zero_block[BLOCK_SIZE] = { 0 };
-                    vfs_seek(harddrive, block_number * BLOCK_SIZE, VFS_BEG);
-                    vfs_write(harddrive, zero_block, BLOCK_SIZE);
-
-                    return block_number;
-                }
-            }
-        }
-    }
-
-    return 0xFFFFFFFF; // Out of space
 }
 
 VFSFile* fs_open(VFSIndexNode* inode)
@@ -386,19 +398,32 @@ uint32_t fs_write(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
     struct FileData* fd = file->private_data;
     if (file->position + buffer_size > fd->range_high || file->position < fd->range_low || fd->range_high == fd->range_low) {
-        fd->data = harddrive_load_blocks(fd->data, file->inode->private_data, file->position, 5);
-        if (fd->data == NULL) {
-            return 0;
+        if (file->inode->size == 0) {
+
+            fd->data = malloc(BLOCK_SIZE * 5);
+
+        } else {
+
+            fd->data = harddrive_load_blocks(fd->data, file->inode->private_data, file->position, 5);
+            if (fd->data == NULL) {
+                return 0;
+            }
         }
 
-        fd->range_low = file->position;
+        fd->range_low = (file->position / BLOCK_SIZE) * BLOCK_SIZE;
         fd->range_high = fd->range_low + (5 * BLOCK_SIZE);
     }
 
     uint32_t i;
     for (i = 0; i < buffer_size; i++) {
         fd->data[i + file->position % (BLOCK_SIZE * 5)] = ((uint8_t*)buffer)[i];
+        file->inode->size++;
     }
+    uint32_t number_to_write = 5;
+    if (number_to_write > file->inode->size / BLOCK_SIZE) {
+        number_to_write = (file->inode->size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    }
+    harddrive_write_blocks(fd->data, file->inode->private_data, fd->range_low, 5);
 
     return i;
 }

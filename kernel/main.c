@@ -216,15 +216,19 @@ int main()
 
     vfs_set_driver(get_fs_driver_operations());
 
-    VFSFile* file = vfs_open_file("/testdir2/test", 0);
+    //vfs_create_regular_file("/testfile");
+
+    VFSFile* file = vfs_open_file("/testfile", 0);
     if (file == NULL) {
         printf("Unable to open file\n");
         return 0;
     }
 
+    vfs_write(file, "Testing writing", strlen("Testing writing"));
+
     uint8_t buf[1025];
     buf[1024] = '\0';
-    //vfs_seek(file, 0x43FFFF00, VFS_BEG);
+    vfs_seek(file, 0, VFS_BEG);
     while (vfs_read(file, buf, 1024)) {
         clear();
         printf(buf);
@@ -233,6 +237,7 @@ int main()
         wait_for_keypress();
     }
 
+    //
 
     VFSDirectory* dir = vfs_open_directory("/");
     if (dir == NULL) {
@@ -243,8 +248,6 @@ int main()
     for (int i = 0; i < dir->entries_length; i++) {
         printf("Entry: %s\n", dir->entries[i].path);
     }
-
-
 
     return 0;
 }

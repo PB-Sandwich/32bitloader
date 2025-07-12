@@ -100,7 +100,11 @@ uint32_t pack_file(path file, vector<EstrOSFS::Inode>& inodes, ofstream& output_
     input_file.seekg(0, ios::beg);
 
     uint32_t blocks[13] = { 0 };
-    blocks[0] = output_file.tellp() / EstrOSFS::BLOCK_SIZE;
+    if (size == 0) {
+        blocks[0] = 0;
+    } else {
+        blocks[0] = output_file.tellp() / EstrOSFS::BLOCK_SIZE;
+    }
 
     if (size != 0) {
         output_file << input_file.rdbuf();
