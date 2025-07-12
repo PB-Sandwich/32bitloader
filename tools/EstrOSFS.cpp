@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
@@ -22,8 +24,9 @@ enum InodeType {
 
 struct Inode {
     uint32_t type = 0;
-    uint64_t size = 0;
+    uint32_t size = 0;
     uint32_t blocks[13] {};
+    uint32_t reserved;
 } __attribute__((packed));
 
 struct DirectoryEntry {
@@ -37,6 +40,7 @@ struct SuperBlock {
     uint64_t size_bytes;
     uint32_t n_blocks;
     uint32_t max_inodes;
+    uint32_t n_inodes;
     uint32_t root_inode;
 } __attribute__((packed));
 
@@ -61,6 +65,18 @@ void fill_to_block(ofstream& output_file)
         i++) {
         output_file << (uint8_t)0;
     }
+}
+
+uint32_t write_pointer_block(ofstream& output_file, const vector<uint32_t>& pointers)
+{
+    uint32_t block_num = output_file.tellp() / EstrOSFS::BLOCK_SIZE;
+    output_file.write(reinterpret_cast<const char*>(pointers.data()), pointers.size() * sizeof(uint32_t));
+
+    for (size_t i = pointers.size() * sizeof(uint32_t); i < EstrOSFS::BLOCK_SIZE; ++i) {
+        output_file.put(0);
+    }
+
+    return block_num;
 }
 
 uint32_t pack_file(path file, vector<EstrOSFS::Inode>& inodes, ofstream& output_file)
@@ -90,14 +106,68 @@ uint32_t pack_file(path file, vector<EstrOSFS::Inode>& inodes, ofstream& output_
         output_file << input_file.rdbuf();
         input_file.close();
     }
+    fill_to_block(output_file);
 
     for (int i = 1;
-        i < size / EstrOSFS::BLOCK_SIZE && i < 10;
+        i < size / EstrOSFS::BLOCK_SIZE && i <= 10;
         i++) {
         blocks[i] = blocks[0] + i;
     }
     if (size / EstrOSFS::BLOCK_SIZE > 10) {
-        // TODO: add indirect blocks
+        uint32_t total_blocks = (size + EstrOSFS::BLOCK_SIZE - 1) / EstrOSFS::BLOCK_SIZE;
+
+        if (total_blocks > 11) {
+            // --- Single Indirect (blocks[10])
+            vector<uint32_t> single;
+            for (uint32_t i = 11; i < min(total_blocks, (uint32_t)(11 + 256)); ++i) {
+                single.push_back(blocks[0] + i);
+            }
+            if (!single.empty()) {
+                blocks[10] = write_pointer_block(output_file, single);
+            }
+        }
+
+        if (total_blocks > 11 + 256) {
+            // --- Double Indirect (blocks[11])
+            vector<uint32_t> double_blocks;
+            uint32_t remaining = total_blocks - 11 - 256;
+            for (uint32_t i = 0; i < (remaining + 255) / 256 && i < 256; ++i) {
+                vector<uint32_t> sub;
+                for (uint32_t j = 0; j < min(remaining, 256u); ++j) {
+                    sub.push_back(blocks[0] + 11 + 256 + i * 256 + j);
+                    --remaining;
+                    if (remaining == 0)
+                        break;
+                }
+                double_blocks.push_back(write_pointer_block(output_file, sub));
+            }
+            blocks[11] = write_pointer_block(output_file, double_blocks);
+        }
+
+        if (total_blocks > 11 + 256 + 256 * 256) {
+            // --- Triple Indirect (blocks[12])
+            uint32_t remaining = total_blocks - 11 - 256 - 256 * 256;
+            vector<uint32_t> triple_blocks;
+            for (uint32_t i = 0; i < (remaining + 65535) / 65536 && i < 256; ++i) {
+                vector<uint32_t> double_blocks;
+                for (uint32_t j = 0; j < 256 && remaining > 0; ++j) {
+                    vector<uint32_t> sub;
+                    for (uint32_t k = 0; k < min(remaining, 256u); ++k) {
+                        sub.push_back(blocks[0] + 11 + 256 + 256 * 256 + i * 256 * 256 + j * 256 + k);
+                        --remaining;
+                        if (remaining == 0)
+                            break;
+                    }
+                    double_blocks.push_back(write_pointer_block(output_file, sub));
+                    if (remaining == 0)
+                        break;
+                }
+                triple_blocks.push_back(write_pointer_block(output_file, double_blocks));
+                if (remaining == 0)
+                    break;
+            }
+            blocks[12] = write_pointer_block(output_file, triple_blocks);
+        }
     }
 
     inodes.push_back({
@@ -105,8 +175,6 @@ uint32_t pack_file(path file, vector<EstrOSFS::Inode>& inodes, ofstream& output_
         .size = size,
     });
     copy(blocks, &blocks[13], inodes.back().blocks);
-
-    fill_to_block(output_file);
 
     cout << "Packed file " << file << " : " << size << " bytes\n";
     cout << "block[0]: " << blocks[0] << '\n';
@@ -147,9 +215,10 @@ uint32_t pack_directory(path directory, vector<EstrOSFS::Inode>& inodes, ofstrea
         output_file.write((char*)&entries[i], sizeof(EstrOSFS::DirectoryEntry) - sizeof(string) - 4);
         output_file.write(entries[i].name.c_str(), entries[i].name_length);
     }
+    fill_to_block(output_file);
 
     for (int i = 1;
-        i < entries.size() * sizeof(EstrOSFS::DirectoryEntry) / EstrOSFS::BLOCK_SIZE && i < 10;
+        i < entries.size() * sizeof(EstrOSFS::DirectoryEntry) / EstrOSFS::BLOCK_SIZE && i <= 10;
         i++) {
         blocks[i] = blocks[0] + i;
     }
@@ -157,13 +226,15 @@ uint32_t pack_directory(path directory, vector<EstrOSFS::Inode>& inodes, ofstrea
         // TODO: add indirect blocks
     }
 
+    uint32_t size = 0;
+    for (int i = 0; i < entries.size(); i++) {
+        size += entries[i].entry_length;
+    }
     inodes[inode_number] = {
         .type = EstrOSFS::DIRECTORY,
-        .size = (uint32_t)(entries.size() * sizeof(EstrOSFS::DirectoryEntry)),
+        .size = size,
     };
     copy(blocks, &blocks[13], inodes[inode_number].blocks);
-
-    fill_to_block(output_file);
 
     cout << "Packed directory: " << directory << " : " << entries.size() << " entries\n";
     cout << "block[0]: " << blocks[0] << '\n';
@@ -211,6 +282,7 @@ int pack(vector<string> args)
         .size_bytes = fs_size_bytes,
         .n_blocks = (uint32_t)(output_file.tellp() / EstrOSFS::BLOCK_SIZE),
         .max_inodes = EstrOSFS::MAX_INODES,
+        .n_inodes = (uint32_t)inodes.size(),
         .root_inode = root_inode,
     };
     output_file.seekp(EstrOSFS::SUPER_BLOCK_OFFSET, ios::beg);
@@ -276,6 +348,23 @@ int add_boot(vector<string> args)
     return 0;
 }
 
+int gen_test(vector<string> args)
+{
+    path file = args[2];
+    uint32_t size = stoul(args[3]);
+
+    ofstream output_file(file, ios::binary);
+    if (!output_file.is_open()) {
+        cerr << "Unable to open file: " << file << '\n';
+        return 1;
+    }
+
+    for (uint32_t i = 0; i < size; i += 4) {
+        output_file.write((char*)&i, 4);
+    }
+    return 0;
+}
+
 int main(int argc, char* argv[])
 {
     vector<string> args;
@@ -290,6 +379,8 @@ int main(int argc, char* argv[])
         cerr << "\t\tturn a directory into a filesystem image\n\n";
         cerr << "\tboot input-file filesystem-img\n";
         cerr << "\t\tadd a boot loader to the start of a image\n\n";
+        cerr << "\tgen-test output-file size\n";
+        cerr << "\t\tcreates a file with each uint32_t being filled with its offset in bytes\n\n";
         return 1;
     }
     if (args[1] == "pack") {
@@ -298,6 +389,10 @@ int main(int argc, char* argv[])
         }
     } else if (args[1] == "boot") {
         if (add_boot(args) != 0) {
+            return 1;
+        }
+    } else if (args[1] == "get-test") {
+        if (gen_test(args) != 0) {
             return 1;
         }
     }

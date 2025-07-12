@@ -92,7 +92,18 @@ int vfs_create_regular_file(char* path)
         return 1; // already exists in virtual filesystem
     };
 
-    return dops.create_inode(path, VFS_REGULAR_FILE); // will check if it already exists
+    uint32_t offset = 0;
+    for (int i = strlen(path); i > 0; i--) {
+        if (path[i] == '/') {
+            path[i] = '\0';
+            offset = i;
+        }
+    }
+    char* name = path + offset + 1;
+
+    return dops.create_inode(path, name, VFS_REGULAR_FILE); // will check if it already exists
+
+    path[offset] = '/';
 }
 
 int vfs_create_device_file(char* path, VFSFileOperations fops, VFSFileType type)
@@ -225,7 +236,7 @@ void vfs_close_directory(VFSDirectory* vfs_directory)
 }
 
 // returns NULL on fail
-VFSFile* vfs_open_file(char* path)
+VFSFile* vfs_open_file(char* path, VFSFileFlags flags)
 {
     VFSIndexNode* virtual_inode = hashmap_get(&hashmap, path, strlen(path));
 
@@ -237,7 +248,7 @@ VFSFile* vfs_open_file(char* path)
         }
         virtual_inode = insert_new_inode(physical_inode, path);
     }
-    VFSFile* file = virtual_inode->file_operations.open(virtual_inode);
+    VFSFile* file = virtual_inode->file_operations.open(virtual_inode, flags);
     virtual_inode->number_of_references++;
     return file;
 }
@@ -248,14 +259,14 @@ void vfs_close_file(VFSFile* file)
     file->inode->file_operations.close(file);
 }
 
-void vfs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
+uint32_t vfs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
-    file->inode->file_operations.read(file, buffer, buffer_size);
+    return file->inode->file_operations.read(file, buffer, buffer_size);
 }
 
-void vfs_write(VFSFile* file, void* buffer, uint32_t buffer_size)
+uint32_t vfs_write(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
-    file->inode->file_operations.write(file, buffer, buffer_size);
+    return file->inode->file_operations.write(file, buffer, buffer_size);
 }
 
 void vfs_ioctl(VFSFile* file, uint32_t command, uint32_t arg)

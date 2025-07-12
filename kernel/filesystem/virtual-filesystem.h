@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-typedef enum {
+typedef enum : uint8_t{
     VFS_BEG = 1,
     VFS_CUR = 2,
     VFS_END = 3,
@@ -17,20 +17,26 @@ typedef enum {
     VFS_CHARACTER_DEVICE = 3,
 } VFSFileType;
 
+typedef enum : uint8_t {
+    VFS_READ = 0b1,
+    VFS_WRITE = 0b01,
+    VFS_APPEND = 0b001,
+} VFSFileFlags;
+
 typedef struct {
-    void* (*open)(void* inode); // returns VFSFile
+    void* (*open)(void* inode, VFSFileFlags flags); // returns VFSFile
     void (*close)(void* file);
-    void (*read)(void* file, void* buffer, uint32_t buffer_size);
-    void (*write)(void* file, void* buffer, uint32_t buffer_size);
+    uint32_t (*read)(void* file, void* buffer, uint32_t buffer_size); // returns the number of bytes read/written
+    uint32_t (*write)(void* file, void* buffer, uint32_t buffer_size);
     void (*ioctl)(void* file, uint32_t command, uint32_t arg);
-    void (*seek)(void* file, uint32_t offset, uint32_t whence);
+    void (*seek)(void* file, uint32_t offset, VFSWhence whence);
     uint32_t (*tell)(void* file);
     void (*flush)(void* file);
 } VFSFileOperations;
 
 typedef struct {
     uint32_t type;
-    uint64_t size;
+    uint32_t size;
     VFSFileOperations file_operations;
     void* private_data;
     uint32_t number_of_references;
@@ -40,7 +46,7 @@ typedef struct {
     VFSIndexNode* inode;
     void* private_data;
     uint32_t private_data_size;
-    uint64_t position;
+    uint32_t position;
 } VFSFile;
 
 typedef struct {
@@ -54,7 +60,7 @@ typedef struct {
 } VFSDirectory;
 
 typedef struct {
-    int (*create_inode)(char* path, VFSFileType type);
+    int (*create_inode)(char* path, char* name, VFSFileType type);
     VFSIndexNode (*get_inode)(char* path);
     VFSDirectory* (*get_directory)(char* path, VFSIndexNode* inode);
     void (*free_inode_data)(VFSIndexNode inode);
@@ -91,10 +97,10 @@ VFSDirectory* vfs_open_directory(char* path);
 void vfs_close_directory(VFSDirectory* vfs_directory);
 
 // returns NULL on fail
-VFSFile* vfs_open_file(char* path);
+VFSFile* vfs_open_file(char* path, VFSFileFlags flags);
 void vfs_close_file(VFSFile* file);
-void vfs_read(VFSFile* file, void* buffer, uint32_t buffer_size);
-void vfs_write(VFSFile* file, void* buffer, uint32_t buffer_size);
+uint32_t vfs_read(VFSFile* file, void* buffer, uint32_t buffer_size);
+uint32_t vfs_write(VFSFile* file, void* buffer, uint32_t buffer_size);
 void vfs_ioctl(VFSFile* file, uint32_t command, uint32_t arg);
 void vfs_seek(VFSFile* file, uint32_t offset, uint32_t whence);
 uint32_t vfs_tell(VFSFile* file);

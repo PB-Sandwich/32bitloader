@@ -43,10 +43,12 @@ LDFLAGS := -m elf_i386 -nostdlib -T linker.ld
 
 all: tools kernel lib apps filesystem
 
-run: filesystem
+run: 
+	./build/tools/EstrOSFS boot $(BUILD_DIR)/$(NAME).bin $(BUILD_DIR)/$(NAME).img
 	$(QEMU) -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS)
 
-debug: filesystem
+debug:
+	./build/tools/EstrOSFS boot $(BUILD_DIR)/$(NAME).bin $(BUILD_DIR)/$(NAME).img
 	$(QEMU) -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS) -s -S
 
 libs:
@@ -77,8 +79,8 @@ filesystem: tools
 	@# fill to 0xffff
 	@truncate -s 65536 $(BUILD_DIR)/$(NAME).img
 	@mkdir -p $(FILE_SYSTEM)
-	@./build/tools/EstrOSFS pack $(BUILD_DIR)/root $(BUILD_DIR)/$(NAME).img 
-	@./build/tools/EstrOSFS boot $(BUILD_DIR)/$(NAME).bin $(BUILD_DIR)/$(NAME).img
+	@./build/tools/EstrOSFS pack $(BUILD_DIR)/root $(BUILD_DIR)/$(NAME).img
+	@truncate -s +1000000 $(BUILD_DIR)/$(NAME).img
 	@echo "-------------------------------------"
 	
 

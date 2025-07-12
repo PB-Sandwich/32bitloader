@@ -216,18 +216,25 @@ int main()
 
     vfs_set_driver(get_fs_driver_operations());
 
-    VFSFile* file = vfs_open_file("/brainfuck.bin");
+    VFSFile* file = vfs_open_file("/testdir2/test", 0);
     if (file == NULL) {
         printf("Unable to open file\n");
         return 0;
     }
 
-    uint8_t buf[512];
-    vfs_read(file, buf, 512);
-    printf("Contents of file:\n%s\n", buf);
+    uint8_t buf[1025];
+    buf[1024] = '\0';
+    //vfs_seek(file, 0x43FFFF00, VFS_BEG);
+    while (vfs_read(file, buf, 1024)) {
+        clear();
+        printf(buf);
+        set_cursor_pos(0, VGA_HEIGHT - 1);
+        printf("Offset: %x", vfs_tell(file));
+        wait_for_keypress();
+    }
 
-    vfs_open_directory("/testdir2");
-    VFSDirectory* dir = vfs_open_directory("/testdir2");
+
+    VFSDirectory* dir = vfs_open_directory("/");
     if (dir == NULL) {
         printf("Unable to open directory\n");
         return 0;
@@ -236,6 +243,8 @@ int main()
     for (int i = 0; i < dir->entries_length; i++) {
         printf("Entry: %s\n", dir->entries[i].path);
     }
+
+
 
     return 0;
 }

@@ -78,6 +78,7 @@ void get_cursor_pos(uint8_t* x, uint8_t* y)
     *x = cursor_col;
     *y = cursor_row;
 }
+
 void set_cursor_pos(uint8_t x, uint8_t y)
 {
     cursor_col = x;

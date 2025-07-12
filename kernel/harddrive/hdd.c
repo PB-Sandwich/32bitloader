@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-VFSFile* hdd_open(VFSIndexNode* inode)
+VFSFile* hdd_open(VFSIndexNode* inode, VFSFileFlags flags)
 {
     VFSFile* file = (VFSFile*)malloc(sizeof(VFSFile));
     file->inode = inode;
@@ -20,20 +20,24 @@ void hdd_close(VFSFile* file)
     free(file);
 }
 
-void hdd_read(VFSFile* file, void* buffer, uint32_t buffer_size)
+uint32_t hdd_read(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
     uint32_t n_sectors = buffer_size / SECTOR_SIZE;
-    for (uint32_t i = 0; i < n_sectors; i++) {
+    uint32_t i;
+    for (i = 0; i < n_sectors; i++) {
         ata_read_sector(file->position + i, buffer + i * SECTOR_SIZE);
     }
+    return i * 512;
 }
 
-void hdd_write(VFSFile* file, void* buffer, uint32_t buffer_size)
+uint32_t hdd_write(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
     uint32_t n_sectors = buffer_size / SECTOR_SIZE;
-    for (uint32_t i = 0; i < n_sectors; i++) {
+    uint32_t i;
+    for (i = 0; i < n_sectors; i++) {
         ata_write_sector(file->position + i, buffer + i * SECTOR_SIZE);
     }
+    return i * 512;
 }
 
 void hdd_ioctl(VFSFile* file, uint32_t command, uint32_t arg)
