@@ -3,6 +3,7 @@
 #include <harddrive/ata.h>
 #include <heap.h>
 #include <keyboard/input.h>
+#include <print.h>
 #include <stdint.h>
 #include <string.h>
 #include <terminal/tty.h>
@@ -13,6 +14,7 @@ struct syscall_regs {
 
 void syscall_c(struct syscall_regs* regs)
 {
+    printf("%d\n", regs->eax);
     switch (regs->eax) {
     case 0x00:
         break;

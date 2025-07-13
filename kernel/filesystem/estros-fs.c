@@ -183,6 +183,9 @@ void* harddrive_load_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uin
         }
 
         if (real_block == 0 || real_block == 0xFFFFFFFF) {
+            if (i != 0) {
+                return buffer;
+            }
             return NULL;
         }
 
@@ -207,7 +210,6 @@ uint32_t alloc_block()
     return block; // Out of space
 }
 
-
 void harddrive_write_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uint32_t num_blocks)
 {
     for (uint32_t i = 0; i < num_blocks; i++) {
@@ -225,7 +227,7 @@ void harddrive_write_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uin
         // --- Single Indirect ---
         else if (block_n < NUM_DIRECT_BLOCKS + PTRS_PER_BLOCK) {
             uint32_t index = block_n - NUM_DIRECT_BLOCKS;
-            uint32_t single_ptrs[PTRS_PER_BLOCK] = {0};
+            uint32_t single_ptrs[PTRS_PER_BLOCK] = { 0 };
 
             if (blocks[SINGLE_INDIRECT_INDEX] == 0) {
                 blocks[SINGLE_INDIRECT_INDEX] = alloc_block();
@@ -249,8 +251,8 @@ void harddrive_write_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uin
             uint32_t l1 = index / PTRS_PER_BLOCK;
             uint32_t l2 = index % PTRS_PER_BLOCK;
 
-            uint32_t double_ptrs[PTRS_PER_BLOCK] = {0};
-            uint32_t single_ptrs[PTRS_PER_BLOCK] = {0};
+            uint32_t double_ptrs[PTRS_PER_BLOCK] = { 0 };
+            uint32_t single_ptrs[PTRS_PER_BLOCK] = { 0 };
 
             if (blocks[DOUBLE_INDIRECT_INDEX] == 0) {
                 blocks[DOUBLE_INDIRECT_INDEX] = alloc_block();
@@ -377,10 +379,11 @@ uint32_t fs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
     struct FileData* fd = file->private_data;
 
     if (file->position + buffer_size > fd->range_high || file->position < fd->range_low || fd->range_high == fd->range_low) {
-        fd->data = harddrive_load_blocks(fd->data, file->inode->private_data, file->position, 5);
-        if (fd->data == NULL) {
+        void* temp = harddrive_load_blocks(fd->data, file->inode->private_data, file->position, 5);
+        if (temp == NULL) {
             return 0;
         }
+        fd->data = temp;
 
         fd->range_low = (file->position / BLOCK_SIZE) * BLOCK_SIZE;
         fd->range_high = fd->range_low + (5 * BLOCK_SIZE);
