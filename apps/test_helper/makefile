@@ -7,4 +7,3 @@ all:
 
 	ld -m elf_i386 -nostdlib -T apps/$(PROJECT_NAME)/linker.ld -o build/apps/$(PROJECT_NAME).elf build/apps/$(PROJECT_NAME)/$(PROJECT_NAME).o
 	
-	cp build/apps/$(PROJECT_NAME).elf build/root/$(PROJECT_NAME).bin
