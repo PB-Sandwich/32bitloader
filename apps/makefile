@@ -7,15 +7,16 @@ EXE_EXT := bin
 
 .PRECIOUS: $(BUILD_DIR)/%.elf
 
+# To add new app to be built, make sure that the app makefile builds a .elf file that is placed in BUILD_DIR
 APPS := $(DESTINATION_APP_DIR)/old_demo.$(EXE_EXT)\
 		$(DESTINATION_APP_DIR)/test_helper.$(EXE_EXT)\
 		$(DESTINATION_APP_DIR)/minesweeper.$(EXE_EXT)\
 		$(DESTINATION_APP_DIR)/brainfuck.$(EXE_EXT)\
+	  $(DESTINATION_APP_DIR)/new_test.$(EXE_EXT)\
 		$(DESTINATION_APP_DIR)/calc.$(EXE_EXT)
 
 	
 all: prepare $(APPS)
-	make --file ./apps/new_test/makefile all
 	@echo "Build apps"
 
 prepare:
