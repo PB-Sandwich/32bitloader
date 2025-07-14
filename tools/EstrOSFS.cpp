@@ -111,9 +111,8 @@ uint32_t pack_file(path file, vector<EstrOSFS::Inode>& inodes, ofstream& output_
         input_file.close();
     }
     fill_to_block(output_file);
-
     for (int i = 1;
-        i < size / EstrOSFS::BLOCK_SIZE && i <= 10;
+        i < (size / EstrOSFS::BLOCK_SIZE) + 1 && i <= 10;
         i++) {
         blocks[i] = blocks[0] + i;
     }

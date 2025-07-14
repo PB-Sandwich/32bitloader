@@ -127,11 +127,22 @@ void fs_set_harddrive(char* path)
     return;
 };
 
+
+#include <print.h>
 void* harddrive_load_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uint32_t num_blocks)
 {
+    void* temp = realloc(buffer, num_blocks * BLOCK_SIZE);
+    if (temp == NULL) {
+        return buffer;
+    }
+    buffer = temp;
+
     for (uint32_t i = 0; i < num_blocks; i++) {
 
         uint32_t block_n = (pos + i * BLOCK_SIZE) / BLOCK_SIZE;
+        printf("%d\n", block_n);
+        printf("%d\n", blocks[block_n]);
+
         uint32_t real_block = 0xFFFFFFFF;
 
         if (block_n < NUM_DIRECT_BLOCKS) {
@@ -189,12 +200,7 @@ void* harddrive_load_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uin
             return NULL;
         }
 
-        void* temp = realloc(buffer, (i * BLOCK_SIZE) + BLOCK_SIZE);
-        if (temp == NULL) {
-            return buffer;
-        }
-        buffer = temp;
-
+        printf("%d\n", real_block);
         vfs_seek(harddrive, real_block * BLOCK_SIZE, VFS_BEG);
         vfs_read(harddrive, buffer + (i * BLOCK_SIZE), BLOCK_SIZE);
     }
@@ -367,6 +373,8 @@ void fs_close(VFSFile* file)
     free(file);
 }
 
+#define BUFFER_SIZE_BLOCKS 5
+
 uint32_t fs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
     if (buffer_size + file->position > file->inode->size) {
@@ -379,19 +387,20 @@ uint32_t fs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
     struct FileData* fd = file->private_data;
 
     if (file->position + buffer_size > fd->range_high || file->position < fd->range_low || fd->range_high == fd->range_low) {
-        void* temp = harddrive_load_blocks(fd->data, file->inode->private_data, file->position, 5);
+        printf("0x%x\n", file->position);
+        void* temp = harddrive_load_blocks(fd->data, file->inode->private_data, file->position, BUFFER_SIZE_BLOCKS);
         if (temp == NULL) {
             return 0;
         }
         fd->data = temp;
 
         fd->range_low = (file->position / BLOCK_SIZE) * BLOCK_SIZE;
-        fd->range_high = fd->range_low + (5 * BLOCK_SIZE);
+        fd->range_high = fd->range_low + (BUFFER_SIZE_BLOCKS * BLOCK_SIZE);
     }
 
     uint32_t i;
     for (i = 0; i < buffer_size; i++) {
-        ((uint8_t*)buffer)[i] = fd->data[i + file->position % (BLOCK_SIZE * 5)];
+        ((uint8_t*)buffer)[i] = fd->data[i + file->position % (BLOCK_SIZE * (BUFFER_SIZE_BLOCKS - 1))];
     }
     file->position += i;
     return i;

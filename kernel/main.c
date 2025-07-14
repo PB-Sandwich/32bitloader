@@ -235,8 +235,8 @@ int main()
     uint32_t entry_point;
     vfs_seek(file, 0, VFS_BEG);
     vfs_read(file, &entry_point, 4);
+
     void (*entry_function)(void*) = (void*)entry_point;
-    printf("%x\n", entry_function);
     entry_function(&kernel_exports);
 
     //

@@ -35,7 +35,7 @@ void print_hex(unsigned int num)
     int i = 0;
 
     if (num == 0) {
-        print_string((uint8_t*)"0x0");
+        print_string((uint8_t*)"0");
         return;
     }
 
@@ -44,7 +44,6 @@ void print_hex(unsigned int num)
         num >>= 4;
     }
 
-    print_string((uint8_t*)"0x");
     while (i--) {
         print_char(buf[i]);
     }
