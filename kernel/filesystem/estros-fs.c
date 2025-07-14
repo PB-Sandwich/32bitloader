@@ -71,6 +71,7 @@ void fs_set_harddrive(char* path)
     return;
 };
 
+#include <print.h>
 
 void* harddrive_load_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uint32_t num_blocks)
 {
@@ -317,32 +318,45 @@ void fs_close(VFSFile* file)
 
 uint32_t fs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
+    if (buffer_size == 0) {
+        return 0;
+    }
+    if (file->position >= file->inode->size) {
+        return 0;
+    }
     if (buffer_size + file->position > file->inode->size) {
         buffer_size = file->inode->size - file->position;
-    }
-    if (file->position == file->inode->size) {
-        return 0;
     }
 
     struct FileData* fd = file->private_data;
 
-    if (file->position + buffer_size > fd->range_high || file->position < fd->range_low || fd->range_high == fd->range_low) {
-        void* temp = harddrive_load_blocks(fd->data, file->inode->private_data, file->position, BUFFER_SIZE_BLOCKS);
-        if (temp == NULL) {
-            return 0;
+    uint32_t remaining_size = buffer_size;
+    uint32_t bytes_read = 0;
+    while (remaining_size > 0) {
+        if (remaining_size > BUFFER_SIZE_BLOCKS * BLOCK_SIZE) {
+            buffer_size = BUFFER_SIZE_BLOCKS * BLOCK_SIZE;
         }
-        fd->data = temp;
+        remaining_size -= buffer_size;
 
-        fd->range_low = (file->position / BLOCK_SIZE) * BLOCK_SIZE;
-        fd->range_high = fd->range_low + (BUFFER_SIZE_BLOCKS * BLOCK_SIZE);
-    }
+        if (file->position + buffer_size > fd->range_high || file->position < fd->range_low || fd->range_high == fd->range_low) {
+            void* temp = harddrive_load_blocks(fd->data, file->inode->private_data, file->position, BUFFER_SIZE_BLOCKS);
+            if (temp == NULL) {
+                return 0;
+            }
+            fd->data = temp;
 
-    uint32_t i;
-    for (i = 0; i < buffer_size; i++) {
-        ((uint8_t*)buffer)[i] = fd->data[i + file->position % (BLOCK_SIZE * (BUFFER_SIZE_BLOCKS - 1))];
+            fd->range_low = (file->position / BLOCK_SIZE) * BLOCK_SIZE;
+            fd->range_high = fd->range_low + (BUFFER_SIZE_BLOCKS * BLOCK_SIZE);
+        }
+
+        uint32_t i;
+        for (i = 0; i < buffer_size; i++) {
+            ((uint8_t*)buffer)[i] = fd->data[i + file->position % (BLOCK_SIZE * (BUFFER_SIZE_BLOCKS - 1))];
+        }
+        file->position += i;
+        bytes_read += i;
     }
-    file->position += i;
-    return i;
+    return bytes_read;
 }
 
 uint32_t fs_write(VFSFile* file, void* buffer, uint32_t buffer_size)
@@ -379,7 +393,7 @@ uint32_t fs_write(VFSFile* file, void* buffer, uint32_t buffer_size)
     return i;
 }
 
-void fs_ioctl(VFSFile* file, uint32_t *command, uint32_t *arg) { }
+void fs_ioctl(VFSFile* file, uint32_t* command, uint32_t* arg) { }
 void fs_seek(VFSFile* file, uint32_t offset, uint32_t whence)
 {
     switch (whence) {
