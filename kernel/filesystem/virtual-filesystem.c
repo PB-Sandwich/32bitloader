@@ -16,7 +16,7 @@ VFSDriverOperations dops = {
     .get_directory = (void*)null_function,
 };
 
-VFSIndexNode* inodes = NULL;
+VFSIndexNode** inodes = NULL;
 uint32_t inodes_size = 0;
 struct hashmap_s hashmap;
 
@@ -25,7 +25,7 @@ int vfs_init()
     if (hashmap_create(16, &hashmap) != 0) {
         return 1;
     }
-    inodes = (VFSIndexNode*)malloc(sizeof(VFSIndexNode));
+    inodes = (VFSIndexNode**)malloc(sizeof(VFSIndexNode));
     if (inodes == NULL) {
         hashmap_destroy(&hashmap);
         return 1;
@@ -41,26 +41,27 @@ void vfs_set_driver(VFSDriverOperations driver_operations)
 
 VFSIndexNode* insert_new_inode(VFSIndexNode inode, char* path)
 {
-    void* temp = realloc(inodes, sizeof(VFSIndexNode) * (inodes_size + 1));
+    void* temp = realloc(inodes, sizeof(VFSIndexNode*) * (inodes_size + 1));
     if (temp == NULL) {
         return NULL;
     }
-    inodes = (VFSIndexNode*)temp;
-    inodes[inodes_size] = inode;
+    inodes = (VFSIndexNode**)temp;
+    inodes[inodes_size] = (VFSIndexNode*)malloc(sizeof(VFSIndexNode));
+    *inodes[inodes_size] = inode;
 
-    if (hashmap_put(&hashmap, path, strlen(path), &inodes[inodes_size]) != 0) {
+    if (hashmap_put(&hashmap, path, strlen(path), inodes[inodes_size]) != 0) {
         temp = realloc(inodes, sizeof(VFSIndexNode) * inodes_size);
         if (temp == NULL) {
             return NULL;
         }
-        inodes = (VFSIndexNode*)temp;
+        inodes = (VFSIndexNode**)temp;
         if (inode.type == VFS_REGULAR_FILE) {
             dops.free_inode_data(inode);
         }
         return NULL;
     }
     inodes_size++;
-    return &inodes[inodes_size - 1];
+    return inodes[inodes_size - 1];
 }
 
 void free_directory(VFSDirectory* dir)
@@ -120,10 +121,11 @@ int vfs_create_device_file(char* path, VFSFileOperations fops, VFSFileType type)
     }
 
     VFSIndexNode physical_inode = dops.get_inode(path);
-    if (physical_inode.type == VFS_ERROR) {
+    if (physical_inode.type != VFS_ERROR) {
         dops.free_inode_data(physical_inode);
         return 1; // directory does not exist
     }
+    dops.free_inode_data(physical_inode);
 
     return vfs_create_device_file_no_checks(path, fops, type);
 }
@@ -168,7 +170,7 @@ int hash_dir_iter(void* const context, struct hashmap_element_s* const e)
             return 0;
         }
 
-        if (rest[0] != '/') {
+        if (rest[-1] != '/') {
             return 0;
         }
 
@@ -248,6 +250,7 @@ VFSFile* vfs_open_file(char* path, VFSFileFlags flags)
         }
         virtual_inode = insert_new_inode(physical_inode, path);
     }
+
     VFSFile* file = virtual_inode->file_operations.open(virtual_inode, flags);
     virtual_inode->number_of_references++;
     return file;
@@ -269,7 +272,7 @@ uint32_t vfs_write(VFSFile* file, void* buffer, uint32_t buffer_size)
     return file->inode->file_operations.write(file, buffer, buffer_size);
 }
 
-void vfs_ioctl(VFSFile* file, uint32_t command, uint32_t arg)
+void vfs_ioctl(VFSFile* file, uint32_t* command, uint32_t* arg)
 {
     file->inode->file_operations.ioctl(file, command, arg);
 }

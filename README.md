@@ -6,37 +6,6 @@ Loads a x86 32 bit app into memory address 0x300000 (3Mb) and provides some basi
 
 The app should be put into the ./build/root directory as a statically linked elf file for 0x300000.
 
-## Kernel Exports
-The app will get passed the following at esp + 8
-```c
-void printf(const char* fmt, ...);
-
-void print_char(uint8_t chr);
-void print_string(uint8_t* str);
-void set_color(uint8_t fg, uint8_t bg);
-void newline();
-void clear();
-void get_cursor_pos(uint8_t* x, uint8_t* y);
-void set_cursor_pos(uint8_t x, uint8_t y);
-
-void clear_key_pressed(); // clears the key pressed flag
-uint8_t key_pressed(); // returns 1 if a key is pressed
-uint8_t scancode(); // gets the last scancode
-void set_keyboard_function(void (*keyboard_function_)(uint8_t scancode));
-
-enum Keycode wait_for_keypress();
-uint8_t* get_line(); // returns the pointer to input buffer (which will get overwritten on next call)
-uint8_t keycode_to_ascii(enum Keycode kc);
-enum Keycode scancode_to_keycode(uint8_t sc);
-
-void ata_read_sector(uint32_t lba, uint8_t* buffer);
-void ata_write_sector(uint32_t lba, uint8_t* buffer);
-
-struct IDTEntry make_idt_entry(uint32_t *offset, uint16_t selector, uint8_t type_attr);
-
-void memcpy(void *dest, void *source, uint32_t size);
-```
-
 ## Syscalls
 
 All syscalls are on interrupt 0x40 (decimal 64).
@@ -56,30 +25,53 @@ ecx = stdin
 edx = stderr
 ```
 
-### 0x02
+### 0x02 open
 ```
-NOP
+input
+ebx = path to file (char*)
+ecx = flags
+output
+ebx = file pointer
 ```
 
-### 0x03 read
+### 0x03 close
+```
+input
+ebx = file pointer
+```
+
+### 0x04 read
 ```
 input
 ebx = file pointer
 ecx = size
 edx = buffer
 output
-ecx = number of bytes read
+eax = number of bytes read
 ```
 
-### 0x04 write
+### 0x05 write
 ```
 input
 ebx = file pointer
 ecx = size
 edx = buffer
 output
-ecx = number of bytes written
+eax = number of bytes written
 ```
+
+### 0x06 ioctl
+```
+input
+ebx = file pointer
+ecx = command
+edx = arg
+output (specified by driver)
+ecx
+edx
+```
+
+
 
 ## File System
 EstrOS File System v1

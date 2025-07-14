@@ -1,10 +1,87 @@
 #include "tty.h"
+#include "filesystem/virtual-filesystem.h"
+#include "keyboard/input.h"
+#include <heap.h>
 #include <stdint.h>
+#include <stdlib.h>
+
+void print_char(uint8_t chr);
+void print_string(uint8_t* str);
+void set_color(uint8_t fg, uint8_t bg);
+void newline();
+void clear();
+void get_cursor_pos(uint8_t* x, uint8_t* y);
+void set_cursor_pos(uint8_t x, uint8_t y);
 
 uint8_t cursor_row = 0;
 uint8_t cursor_col = 0;
 
 uint8_t color = White | Black << 4;
+
+VFSFile* tty_open(VFSIndexNode* inode)
+{
+    VFSFile* file = (VFSFile*)malloc(sizeof(VFSFile));
+    file->inode = inode;
+    file->position = 0;
+    file->private_data = NULL;
+    file->private_data_size = 0;
+    return file;
+}
+void tty_close(VFSFile* file)
+{
+    free(file);
+}
+uint32_t tty_read(VFSFile* file, void* buffer, uint32_t buffer_size)
+{
+    return 0;
+}
+uint32_t tty_write(VFSFile* file, void* buffer, uint32_t buffer_size)
+{
+    for (uint32_t i = 0; i < buffer_size; i++) {
+        print_char(((char*)buffer)[i]);
+    }
+    return buffer_size;
+}
+void tty_ioctl(VFSFile* file, uint32_t* command, uint32_t* arg)
+{
+    switch (*command) {
+    case TTY_CLEAR:
+        clear();
+        break;
+    case TTY_SET_BG_COLOR:
+        color = color | *arg << 4;
+        break;
+    case TTY_SET_FG_COLOR:
+        color = (*arg & 0xf) | color;
+        break;
+    case TTY_SET_CURSOR_POS:
+        cursor_row = *arg >> 16;
+        cursor_col = *arg & 0xffff;
+        break;
+    case TTY_GET_CURSOR_POS:
+        *arg = cursor_row << 16;
+        *arg = *arg | cursor_col;
+        break;
+    }
+}
+void tty_seek(VFSFile* file, uint32_t offset, uint32_t whence) { }
+uint32_t tty_tell(VFSFile* file) { return 0; }
+void tty_flush(VFSFile* file) { }
+
+VFSFileOperations get_tty_file_operations()
+{
+    VFSFileOperations fops = {
+        .open = (void*)tty_open,
+        .close = (void*)tty_close,
+        .read = (void*)tty_read,
+        .write = (void*)tty_write,
+        .ioctl = (void*)tty_ioctl,
+        .seek = (void*)tty_seek,
+        .tell = (void*)tty_tell,
+        .flush = (void*)tty_flush,
+    };
+    return fops;
+}
 
 void print_char(uint8_t chr)
 {

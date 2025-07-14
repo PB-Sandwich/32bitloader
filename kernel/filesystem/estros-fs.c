@@ -5,62 +5,6 @@
 #include <memutils.h>
 #include <stdlib.h>
 
-// typedef enum {
-//     VFS_BEG = 1,
-//     VFS_CUR = 2,
-//     VFS_END = 3,
-// } VFSWhence;
-//
-// typedef enum {
-//     VFS_ERROR = 0,
-//     VFS_REGULAR_FILE = 1,
-//     VFS_BLOCK_DEVICE = 2,
-//     VFS_CHARACTER_DEVICE = 3,
-// } VFSFileType;
-//
-// typedef struct {
-//     void* (*open)(void* inode); // returns VFSFile
-//     void (*close)(void* file);
-//     void (*read)(void* file, void* buffer, uint32_t buffer_size);
-//     void (*write)(void* file, void* buffer, uint32_t buffer_size);
-//     void (*ioctl)(void* file, uint32_t command, uint32_t arg);
-//     void (*seek)(void* file, uint32_t offset, uint32_t whence);
-//     uint32_t (*tell)(void* file);
-//     void (*flush)(void* file);
-// } VFSFileOperations;
-//
-// typedef struct {
-//     uint32_t type;
-//     uint32_t size;
-//     VFSFileOperations file_operations;
-//     void* private_data;
-//     uint32_t number_of_references;
-// } VFSIndexNode;
-//
-// typedef struct {
-//     VFSIndexNode* inode;
-//     void* private_data;
-//     uint32_t private_data_size;
-//     uint32_t position;
-// } VFSFile;
-//
-// typedef struct {
-//     char* path;
-// } VFSDirectoryEntry;
-//
-// typedef struct {
-//     VFSIndexNode inode;
-//     VFSDirectoryEntry* entries;
-//     uint32_t entries_length;
-// } VFSDirectory;
-//
-// typedef struct {
-//     int (*create_inode)(char* path, VFSFileType type);
-//     VFSIndexNode (*get_inode)(char* path);
-//     VFSDirectory* (*get_directory)(char* path);
-//     void (*free_inode_data)(VFSIndexNode inode);
-// } VFSDriverOperations;
-
 enum BitMap {
     FREE = 0,
     USED = 1,
@@ -128,7 +72,6 @@ void fs_set_harddrive(char* path)
 };
 
 
-#include <print.h>
 void* harddrive_load_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uint32_t num_blocks)
 {
     void* temp = realloc(buffer, num_blocks * BLOCK_SIZE);
@@ -140,8 +83,6 @@ void* harddrive_load_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uin
     for (uint32_t i = 0; i < num_blocks; i++) {
 
         uint32_t block_n = (pos + i * BLOCK_SIZE) / BLOCK_SIZE;
-        printf("%d\n", block_n);
-        printf("%d\n", blocks[block_n]);
 
         uint32_t real_block = 0xFFFFFFFF;
 
@@ -200,7 +141,6 @@ void* harddrive_load_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uin
             return NULL;
         }
 
-        printf("%d\n", real_block);
         vfs_seek(harddrive, real_block * BLOCK_SIZE, VFS_BEG);
         vfs_read(harddrive, buffer + (i * BLOCK_SIZE), BLOCK_SIZE);
     }
@@ -387,7 +327,6 @@ uint32_t fs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
     struct FileData* fd = file->private_data;
 
     if (file->position + buffer_size > fd->range_high || file->position < fd->range_low || fd->range_high == fd->range_low) {
-        printf("0x%x\n", file->position);
         void* temp = harddrive_load_blocks(fd->data, file->inode->private_data, file->position, BUFFER_SIZE_BLOCKS);
         if (temp == NULL) {
             return 0;
@@ -440,7 +379,7 @@ uint32_t fs_write(VFSFile* file, void* buffer, uint32_t buffer_size)
     return i;
 }
 
-void fs_ioctl(VFSFile* file, uint32_t command, uint32_t arg) { }
+void fs_ioctl(VFSFile* file, uint32_t *command, uint32_t *arg) { }
 void fs_seek(VFSFile* file, uint32_t offset, uint32_t whence)
 {
     switch (whence) {

@@ -179,22 +179,24 @@ int main()
 
     vfs_close_file(file);
 
-    void (*entry_function)() = (void*)entry_point;
-    entry_function();
+    // void (*entry_function)() = (void*)entry_point;
+    // entry_function();
 
-    // VFSDirectory* dir
-    //     = vfs_open_directory("/");
-    // if (dir == NULL) {
-    //     printf("Unable to open directory\n");
-    //     return 0;
-    // }
-    // printf("Opened dir\n");
-    // for (int i = 0; i < dir->entries_length; i++) {
-    //     printf("Entry: %s\n", dir->entries[i].path);
-    // }
-    //
-    // void* file2 = vfs_open_file("/tty", 0);
-    // vfs_write(file2, "Ha", 2);
+    dump_heap();
+
+    VFSDirectory* dir
+        = vfs_open_directory("/");
+    if (dir == NULL) {
+        printf("Unable to open directory\n");
+        return 0;
+    }
+    printf("Opened dir\n");
+    for (int i = 0; i < dir->entries_length; i++) {
+        printf("Entry: %s\n", dir->entries[i].path);
+    }
+
+    void* file2 = vfs_open_file("/tty", 0);
+    vfs_write(file2, "Ha", 2);
 
     return 0;
 }

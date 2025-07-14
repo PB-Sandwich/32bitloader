@@ -28,7 +28,7 @@ typedef struct {
     void (*close)(void* file);
     uint32_t (*read)(void* file, void* buffer, uint32_t buffer_size); // returns the number of bytes read/written
     uint32_t (*write)(void* file, void* buffer, uint32_t buffer_size);
-    void (*ioctl)(void* file, uint32_t command, uint32_t arg);
+    void (*ioctl)(void* file, uint32_t *command, uint32_t *arg);
     void (*seek)(void* file, uint32_t offset, VFSWhence whence);
     uint32_t (*tell)(void* file);
     void (*flush)(void* file);
@@ -101,7 +101,7 @@ VFSFile* vfs_open_file(char* path, VFSFileFlags flags);
 void vfs_close_file(VFSFile* file);
 uint32_t vfs_read(VFSFile* file, void* buffer, uint32_t buffer_size);
 uint32_t vfs_write(VFSFile* file, void* buffer, uint32_t buffer_size);
-void vfs_ioctl(VFSFile* file, uint32_t command, uint32_t arg);
+void vfs_ioctl(VFSFile* file, uint32_t *command, uint32_t *arg);
 void vfs_seek(VFSFile* file, uint32_t offset, uint32_t whence);
 uint32_t vfs_tell(VFSFile* file);
 void vfs_flush(VFSFile* file);

@@ -40,7 +40,7 @@ uint32_t hdd_write(VFSFile* file, void* buffer, uint32_t buffer_size)
     return i * 512;
 }
 
-void hdd_ioctl(VFSFile* file, uint32_t command, uint32_t arg)
+void hdd_ioctl(VFSFile* file, uint32_t* command, uint32_t* arg)
 {
     return;
 }
