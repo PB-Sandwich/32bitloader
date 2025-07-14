@@ -1,7 +1,12 @@
 #include "system_calls.h"
+#include "filesystem/virtual-filesystem.h"
 #include "irq_handlers.h"
 #include <harddrive/ata.h>
+#include <heap.h>
+#include <keyboard/input.h>
+#include <print.h>
 #include <stdint.h>
+#include <string.h>
 #include <terminal/tty.h>
 
 struct syscall_regs {
@@ -14,58 +19,33 @@ void syscall_c(struct syscall_regs* regs)
     case 0x00:
         break;
     case 0x01:
-        clear();
+        regs->eax = 0x500000;
+        regs->ebx = (uint32_t)vfs_open_file("/tty", VFS_READ | VFS_WRITE);
+        regs->ecx = regs->ebx;
+        regs->edx = regs->ebx;
         break;
     case 0x02:
-        print_string((uint8_t*)regs->ebx);
+        regs->ebx = (uint32_t)vfs_open_file((char*)regs->ebx, regs->ecx);
         break;
     case 0x03:
-        regs->ebx = (uint32_t)text_buffer;
-        regs->ecx = VGA_WIDTH;
-        regs->edx = VGA_HEIGHT;
+        vfs_close_file((void*)regs->ebx);
         break;
     case 0x04:
-        set_cursor_pos(regs->ebx, regs->ecx);
+        regs->eax = vfs_read((void*)regs->ebx, (void*)regs->edx, regs->ecx);
         break;
     case 0x05:
-        clear_key_pressed();
-        __asm__ volatile("sti");
-        while (key_pressed() == 0)
-            ;
-        __asm__ volatile("cli");
-        regs->ebx = scancode();
+        regs->eax = vfs_write((void*)regs->ebx, (void*)regs->edx, regs->ecx);
         break;
     case 0x06:
-        set_keyboard_function((void*)regs->ebx);
+        vfs_ioctl((void*)regs->ebx, &regs->ecx, &regs->edx);
         break;
     case 0x07:
-        for (int i = 0; i < regs->ecx; i++) {
-            ata_read_sector(regs->ebx + i, (uint8_t*)(regs->edx + (i * 512)));
-        }
         break;
     case 0x08:
-        for (int i = 0; i < regs->ecx; i++) {
-            ata_write_sector(regs->ebx + i, (uint8_t*)(regs->edx + (i * 512)));
-        }
+        break;
+    case 0x09:
         break;
     default:
         break;
     }
-}
-
-void syscall(struct interrupt_frame* frame)
-{
-    __asm__ __volatile__(
-        "pushf\n\t"
-        "pusha\n\t"
-        "mov %%esp, %%eax\n\t" // Move pointer to pushed registers into eax
-        "push %%eax\n\t" // Push as argument
-        "call syscall_c\n\t"
-        "add $4, %%esp\n\t"
-        "popa\n\t"
-        "popf\n\t"
-        "iret\n\t"
-        :
-        :
-        : "eax");
 }

@@ -17,15 +17,15 @@ enum Keycode wait_for_keypress()
 uint8_t* get_line()
 {
     buffer[0] = keycode_to_ascii(wait_for_keypress());
-    print_char(buffer[0]);
+    pprint_char(buffer[0]);
     int i = 1;
     while (1) {
         enum Keycode kc = wait_for_keypress();
         if (kc == BACKSPACE && i > 0) {
             buffer[i] = '\0';
-            print_char('\b');
-            print_char(' ');
-            print_char('\b');
+            pprint_char('\b');
+            pprint_char(' ');
+            pprint_char('\b');
             i--;
             continue;
         }
@@ -47,10 +47,10 @@ uint8_t* get_line()
             continue;
         }
 
-        print_char(buffer[i]);
+        pprint_char(buffer[i]);
         i++;
     }
-    newline();
+    pprint_char('\n');
     return buffer;
 }
 

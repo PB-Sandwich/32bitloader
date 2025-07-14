@@ -3,12 +3,10 @@
 # the script will use any elf files entry point and make it to a binary file
 FILE_SYSTEM = $(BUILD_DIR)/root
 
-APP_SIZE=$$(stat --format="%s" $(APP_BIN))
-
 QEMU := qemu-system-i386
 QEMU_FLAGS := -m 512M
 
-NAME := 32bitloader
+NAME := EstrOS
 
 SOURCE_DIR := .
 KERNEL_SOURCE_DIR := $(SOURCE_DIR)/kernel
@@ -24,10 +22,12 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/harddrive/ata.c.o \
 		$(BUILD_DIR)/kernel/harddrive/hdd.c.o \
 		$(BUILD_DIR)/kernel/keyboard/input.c.o \
-		$(BUILD_DIR)/kernel/filesystem/filesystem.c.o \
+		$(BUILD_DIR)/kernel/filesystem/virtual-filesystem.c.o \
+		$(BUILD_DIR)/kernel/filesystem/estros-fs.c.o \
 		$(BUILD_DIR)/kernel/interrupts/error_handlers.int.c.o \
 		$(BUILD_DIR)/kernel/interrupts/irq_handlers.int.c.o \
 		$(BUILD_DIR)/kernel/interrupts/system_calls.c.o \
+		$(BUILD_DIR)/kernel/interrupts/system_calls.asm.o
 
 TARGETS_BIN := $(BUILD_DIR)/kernel/boot.bin
 TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
@@ -44,10 +44,12 @@ LDFLAGS := -m elf_i386 -nostdlib -T linker.ld
 
 all: tools kernel lib apps filesystem
 
-run: filesystem
+run: 
+	./build/tools/EstrOSFS boot $(BUILD_DIR)/$(NAME).bin $(BUILD_DIR)/$(NAME).img
 	$(QEMU) -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS)
 
-debug: filesystem
+debug:
+	./build/tools/EstrOSFS boot $(BUILD_DIR)/$(NAME).bin $(BUILD_DIR)/$(NAME).img
 	$(QEMU) -hda $(BUILD_DIR)/$(NAME).img $(QEMU_FLAGS) -s -S
 
 libs:
@@ -67,7 +69,7 @@ kernel: $(TARGETS)
 
 	@echo "Making raw binary"
 	@objcopy -O binary $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/kernel.bin
-	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).img
+	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).bin
 
 filesystem: tools
 	@echo "-------------------------------------"
@@ -78,8 +80,8 @@ filesystem: tools
 	@# fill to 0xffff
 	@truncate -s 65536 $(BUILD_DIR)/$(NAME).img
 	@mkdir -p $(FILE_SYSTEM)
-	@./build/tools/B32FS pack $(BUILD_DIR)/root $(BUILD_DIR)/fs.img $$((0x10000 / 0x200))
-	@cat $(BUILD_DIR)/fs.img >> $(BUILD_DIR)/$(NAME).img
+	@./build/tools/EstrOSFS pack $(BUILD_DIR)/root $(BUILD_DIR)/$(NAME).img
+	@truncate -s +1000000 $(BUILD_DIR)/$(NAME).img
 	@echo "-------------------------------------"
 	
 
@@ -94,7 +96,7 @@ $(BUILD_DIR)/kernel/boot.bin: $(KERNEL_SOURCE_DIR)/boot.asm
 $(BUILD_DIR)/kernel/%.c.o: $(KERNEL_SOURCE_DIR)/%.c
 	@echo "Compiling $<"
 	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) -c -o $@ $<
+	@$(CC) $(CFLAGS) -mno-80387 -mno-sse -mno-mmx -c -o $@ $<
 
 # interrupts
 $(BUILD_DIR)/kernel/%.int.c.o: $(KERNEL_SOURCE_DIR)/%.c

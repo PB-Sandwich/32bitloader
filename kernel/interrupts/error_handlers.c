@@ -4,7 +4,6 @@
 
 void divide_by_zero(struct interrupt_frame* frame)
 {
-    clear();
     printf("divide_by_zero error @ %x\n", frame->eip);
     while (1)
         ;
@@ -16,7 +15,6 @@ void debug(struct interrupt_frame* frame)
 }
 void non_maskable_interrupt(struct interrupt_frame* frame)
 {
-    clear();
     printf("non_maskable_interrupt error @ %x\n", frame->eip);
     while (1)
         ;
@@ -24,7 +22,6 @@ void non_maskable_interrupt(struct interrupt_frame* frame)
 }
 void breakpoint(struct interrupt_frame* frame)
 {
-    clear();
     printf("breakpoint error @ %x\n", frame->eip);
     while (1)
         ;
@@ -32,7 +29,6 @@ void breakpoint(struct interrupt_frame* frame)
 }
 void overflow(struct interrupt_frame* frame)
 {
-    clear();
     printf("overflow error @ %x\n", frame->eip);
     while (1)
         ;
@@ -40,7 +36,7 @@ void overflow(struct interrupt_frame* frame)
 }
 void bound_range(struct interrupt_frame* frame)
 {
-    clear();
+
     printf("bound_range error @ %x\n", frame->eip);
     while (1)
         ;
@@ -48,7 +44,7 @@ void bound_range(struct interrupt_frame* frame)
 }
 void invalid_opcode(struct interrupt_frame* frame)
 {
-    clear();
+
     printf("invalid_opcode error @ %x @ ", frame->eip);
     while (1)
         ;
@@ -56,7 +52,7 @@ void invalid_opcode(struct interrupt_frame* frame)
 }
 void device_not_available(struct interrupt_frame* frame)
 {
-    clear();
+
     printf("device_not_available error @ %x\n", frame->eip);
     while (1)
         ;
@@ -64,7 +60,7 @@ void device_not_available(struct interrupt_frame* frame)
 }
 void double_fault(struct interrupt_frame* frame, uint32_t error_code)
 {
-    clear();
+
     printf("double_fault error @ %x\n", frame->eip);
     while (1)
         ;
@@ -74,7 +70,7 @@ void double_fault(struct interrupt_frame* frame, uint32_t error_code)
 // void coprocessor_segment_overrun(struct interrupt_frame *frame){ return; }
 void invalid_tss(struct interrupt_frame* frame, uint32_t error_code)
 {
-    clear();
+
     printf("invalid_tss error @ %x\n", frame->eip);
     while (1)
         ;
@@ -82,7 +78,7 @@ void invalid_tss(struct interrupt_frame* frame, uint32_t error_code)
 }
 void segment_not_present(struct interrupt_frame* frame, uint32_t error_code)
 {
-    clear();
+
     printf("segment_not_present error @ %x\n", frame->eip);
     while (1)
         ;
@@ -90,7 +86,7 @@ void segment_not_present(struct interrupt_frame* frame, uint32_t error_code)
 }
 void stack(struct interrupt_frame* frame, uint32_t error_code)
 {
-    clear();
+
     printf("stack error @ %x\n", frame->eip);
     while (1)
         ;
@@ -98,7 +94,7 @@ void stack(struct interrupt_frame* frame, uint32_t error_code)
 }
 void general_protection(struct interrupt_frame* frame, uint32_t error_code)
 {
-    clear();
+
     printf("general_protection error @ %x\n", frame->eip);
     while (1)
         ;
@@ -106,7 +102,7 @@ void general_protection(struct interrupt_frame* frame, uint32_t error_code)
 }
 void page_fault(struct interrupt_frame* frame, uint32_t error_code)
 {
-    clear();
+
     printf("page_fault error @ %x\n", frame->eip);
     while (1)
         ;
@@ -116,7 +112,7 @@ void page_fault(struct interrupt_frame* frame, uint32_t error_code)
 // 15 reserved
 void x87_floating_point(struct interrupt_frame* frame)
 {
-    clear();
+
     printf("x87_floating_point error @ %x\n", frame->eip);
     while (1)
         ;
@@ -124,7 +120,7 @@ void x87_floating_point(struct interrupt_frame* frame)
 }
 void alignment_check(struct interrupt_frame* frame, uint32_t error_code)
 {
-    clear();
+
     printf("alignment_check error @ %x\n", frame->eip);
     while (1)
         ;
@@ -132,7 +128,7 @@ void alignment_check(struct interrupt_frame* frame, uint32_t error_code)
 }
 void machine_check(struct interrupt_frame* frame)
 {
-    clear();
+
     printf("machine_check error @ %x\n", frame->eip);
     while (1)
         ;
@@ -140,7 +136,7 @@ void machine_check(struct interrupt_frame* frame)
 }
 void SIMD_floating_point(struct interrupt_frame* frame)
 {
-    clear();
+
     printf("SIMD_floating_point error @ %x\n", frame->eip);
     while (1)
         ;
@@ -150,7 +146,7 @@ void SIMD_floating_point(struct interrupt_frame* frame)
 // 20 reserved
 void control_protection(struct interrupt_frame* frame, uint32_t error_code)
 {
-    clear();
+
     printf("control_protection error @ %x\n", frame->eip);
     while (1)
         ;
@@ -162,7 +158,7 @@ void control_protection(struct interrupt_frame* frame, uint32_t error_code)
 //
 void hypervisor_injection(struct interrupt_frame* frame)
 {
-    clear();
+
     printf("hypervisor_injection error @ %x\n", frame->eip);
     while (1)
         ;
@@ -170,7 +166,7 @@ void hypervisor_injection(struct interrupt_frame* frame)
 }
 void VMM_communication(struct interrupt_frame* frame)
 {
-    clear();
+
     printf("VMM_communication error @ %x\n", frame->eip);
     while (1)
         ;
@@ -178,7 +174,7 @@ void VMM_communication(struct interrupt_frame* frame)
 }
 void security_exception(struct interrupt_frame* frame)
 {
-    clear();
+
     printf("security_exception error @ %x\n", frame->eip);
     while (1)
         ;

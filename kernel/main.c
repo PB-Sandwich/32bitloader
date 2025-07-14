@@ -1,5 +1,7 @@
-#include <filesystem/filesystem.h>
+#include <filesystem/estros-fs.h>
+#include <filesystem/virtual-filesystem.h>
 #include <harddrive/ata.h>
+#include <harddrive/hdd.h>
 #include <heap.h>
 #include <idt.h>
 #include <inboutb.h>
@@ -11,6 +13,7 @@
 #include <pic.h>
 #include <print.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <terminal/tty.h>
 #include <tss.h>
 
@@ -29,68 +32,17 @@ struct App {
     uint32_t entry;
 };
 
-struct {
-    void* printf;
-    void* print_char;
-    void* print_string;
-    void* set_color;
-    void* newline;
-    void* clear;
-    void* get_cursor_pos;
-    void* set_cursor_pos;
-    void* clear_key_pressed;
-    void* key_pressed;
-    void* scancode;
-    void* set_keyboard_function;
-    void* wait_for_keypress;
-    void* get_line;
-    void* keycode_to_ascii;
-    void* scancode_to_keycode;
-    void* ata_read_sector;
-    void* ata_write_sector;
-    void* make_idt_entry;
-    void* memcpy;
-} __attribute__((packed)) kernel_exports = {
-    .printf = printf,
-
-    .print_char = print_char,
-    .print_string = print_string,
-    .set_color = set_color,
-    .newline = newline,
-    .clear = clear,
-    .get_cursor_pos = get_cursor_pos,
-    .set_cursor_pos = set_cursor_pos,
-
-    .clear_key_pressed = clear_key_pressed,
-    .key_pressed = key_pressed,
-    .scancode = scancode,
-    .set_keyboard_function = set_keyboard_function,
-
-    .wait_for_keypress = wait_for_keypress,
-    .get_line = get_line,
-    .keycode_to_ascii = keycode_to_ascii,
-    .scancode_to_keycode = scancode_to_keycode,
-
-    .ata_read_sector = ata_read_sector,
-    .ata_write_sector = ata_write_sector,
-
-    .make_idt_entry = make_idt_entry,
-
-    .memcpy = memcpy
-};
-
 int main();
 
 void kernel_entry(struct GDT* gdt)
 {
+
     // interrupt init
-    printf("setting interrupt descriptor table\n");
     struct IDTPointer idt_pointer;
     idt_pointer.limit = 0xffff;
     idt_pointer.base = IDT_BASE;
     __asm__ volatile("lidt (%0)" : : "r"(&idt_pointer));
 
-    printf("setting exception handlers\n");
     struct IDTEntry* idt_entries = (struct IDTEntry*)IDT_BASE;
     idt_entries[0] = make_idt_entry((uint32_t*)divide_by_zero, 0x8, 0x0E);
     idt_entries[1] = make_idt_entry((uint32_t*)debug, 0x8, 0xE);
@@ -121,7 +73,6 @@ void kernel_entry(struct GDT* gdt)
     // 31 reserved
 
     // tss init
-    printf("setting task segment\n");
     static struct TSS tss = { 0 };
     tss.esp0 = 0x80000; // set the esp for privilege lvel zero switches
     tss.ss0 = 0x10; // stack segment for privilege level zero switches
@@ -143,13 +94,11 @@ void kernel_entry(struct GDT* gdt)
         .base = (uint32_t)gdt
     };
 
-    printf("reloading global descriptor table and task register\n");
     __asm__ volatile("lgdt (%0)" : : "r"(&gdt_descriptor)); // load the new GDT descriptor
     __asm__ volatile("ltr %%ax" : : "a"((3 << 3) | 0x0)); // load the TSS into the task register
 
     // initializing pic
     // https://wiki.osdev.org/8259_PIC
-    printf("initializing programmable interrupt controller\n");
     outb(PIC1_CMD, ICW1_INIT | ICW1_ICW4);
     io_wait();
     outb(PIC2_CMD, ICW1_INIT | ICW1_ICW4);
@@ -175,15 +124,12 @@ void kernel_entry(struct GDT* gdt)
     outb(PIC1_DATA, 0b01111101);
     outb(PIC2_DATA, 0b01111111);
 
-    printf("setting interrupt request handlers\n");
     idt_entries[33] = make_idt_entry((uint32_t*)irq1_keyboard, 0x8, 0xE);
     idt_entries[39] = make_idt_entry((uint32_t*)irq7_15_spurious, 0x8, 0xE);
     idt_entries[47] = make_idt_entry((uint32_t*)irq7_15_spurious, 0x8, 0xE);
 
-    printf("enableing maskable interrupts\n");
     __asm__ volatile("sti"); // reenable maskable interrupts
 
-    printf("setting syscall handler\n");
     idt_entries[0x40] = make_idt_entry((uint32_t*)syscall, 0x8, 0xE);
 
     // set stack
@@ -199,100 +145,56 @@ void kernel_entry(struct GDT* gdt)
         ;
 }
 
-void launch_app(FS_RAMFileDescriptor* file)
-{
-    clear();
-    memset((void*)(0x300000 + file->hdd_file_descriptor.file_size_bytes - 4), 0, 0x200);
-    fs_read_file((void*)0x300000 - 4, file->hdd_file_descriptor.file_size_bytes, file);
-    uint32_t* entry_point = (uint32_t*)(0x300000 - 4);
-    void (*entry_function)(void*) = (void*)*entry_point;
-    entry_function(&kernel_exports);
-    clear();
-}
-
-void display_file_info(FS_RAMFileDescriptor* file)
-{
-    clear();
-    printf("Name: %s\n", file->name);
-    printf("Type: ");
-    switch (file->hdd_file_descriptor.type) {
-    case FS_FILE:
-        printf("File");
-        break;
-    case FS_DIRECTORY:
-        printf("Directory");
-        break;
-    case FS_BLOCK_DEVICE:
-        printf("Block Device");
-        break;
-    }
-    printf("\n");
-    printf("Path: %s\n", file->path);
-    printf("Last accessed by: %s\n", file->last_accessed_path);
-    printf("Last modified by: %s\n", file->last_modified_path);
-    printf("Size: %d bytes\n", file->hdd_file_descriptor.file_size_bytes);
-    printf("Size on disk: %d bytes\n", ((file->hdd_file_descriptor.file_size_bytes + 511) / 512) * 512);
-    printf("Attributes: %x\n", file->hdd_file_descriptor.attributes);
-
-    set_cursor_pos(0, VGA_HEIGHT - 1);
-    printf("Press any key to leave...");
-
-    wait_for_keypress();
-    clear();
-};
-
-void display_list(FS_RAMFileDescriptor* list, uint32_t list_len, uint32_t selection)
-{
-    set_cursor_pos(0, 0);
-    printf("j/k for up and down; i for info; enter to launch\n");
-    for (uint32_t i = 0; i < list_len; i++) {
-        if (selection == i) {
-            set_color(Black, LightGray);
-        }
-        printf("%s\n", list[i].name);
-        set_color(White, Black);
-    }
-}
-
 int main()
 {
-    clear();
-
     init_heap((uint8_t*)0x210000, 0x10000);
 
-    fs_init_filesystem(0x10000 / SECTOR_SIZE);
+    vfs_init();
 
-    FS_RAMFileDescriptor* file = fs_open_file("/");
-    FS_RAMFileDescriptor* entries = fs_read_directory(file);
-    uint32_t dir_len = file->hdd_file_descriptor.file_size_bytes / 4;
+    vfs_create_device_file_no_checks("/hdd", get_hdd_file_operations(), VFS_BLOCK_DEVICE);
 
-    display_list(entries, dir_len, 0);
+    fs_set_harddrive("/hdd");
 
-    uint32_t selection = 0;
-    while (1) {
-        enum Keycode kc = wait_for_keypress();
-        switch (kc) {
-        case J:
-            if (selection < dir_len - 1) {
-                selection++;
-            }
-            break;
-        case K:
-            if (selection > 0) {
-                selection--;
-            }
-            break;
-        case ENTER:
-            launch_app(&entries[selection]);
-            break;
-        case I:
-            display_file_info(&entries[selection]);
-            break;
-        }
-        display_list(entries, dir_len, selection);
+    vfs_set_driver(get_fs_driver_operations());
+
+    vfs_create_device_file("/tty", get_tty_file_operations(), VFS_CHARACTER_DEVICE);
+
+    set_print_output("/tty");
+
+    VFSFile* file = vfs_open_file("/new.bin", VFS_READ);
+    if (file == NULL) {
+        printf("Unable to open file\n");
+        return 0;
     }
 
-    fs_free_directory(entries, dir_len);
+    uint8_t* buf = (uint8_t*)(0x300000);
+    vfs_seek(file, 4, VFS_BEG);
+    while (vfs_read(file, buf, 1024)) {
+        buf += 1024;
+    }
+
+    uint32_t entry_point;
+    vfs_seek(file, 0, VFS_BEG);
+    vfs_read(file, &entry_point, 4);
+
+    vfs_close_file(file);
+
+    void (*entry_function)() = (void*)entry_point;
+    entry_function();
+
+    // VFSDirectory* dir
+    //     = vfs_open_directory("/");
+    // if (dir == NULL) {
+    //     printf("Unable to open directory\n");
+    //     return 0;
+    // }
+    // printf("Opened dir\n");
+    // for (int i = 0; i < dir->entries_length; i++) {
+    //     printf("Entry: %s\n", dir->entries[i].path);
+    // }
+    //
+    // void* file2 = vfs_open_file("/tty", 0);
+    // vfs_write(file2, "Ha", 2);
 
     return 0;
 }
