@@ -180,7 +180,7 @@ int main()
     vfs_close_file(file);
 
     void (*entry_function)() = (void*)entry_point;
-    // entry_function();
+    entry_function();
 
     // VFSDirectory* dir
     //     = vfs_open_directory("/");
