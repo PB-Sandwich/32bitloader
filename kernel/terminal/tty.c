@@ -20,48 +20,64 @@ uint8_t cursor_col = 0;
 
 uint8_t color = White | Black << 4;
 
-uint8_t* input_buffer_base = NULL;
-uint8_t* input_buffer_pos = NULL;
+struct tty_file_data {
+    uint8_t* input_buffer_base;
+    uint8_t* input_buffer_pos;
+};
 
 VFSFile* tty_open(VFSIndexNode* inode)
 {
     VFSFile* file = (VFSFile*)malloc(sizeof(VFSFile));
+    if (file == NULL) {
+        return NULL;
+    }
+    file->private_data = (void*)malloc(sizeof(struct tty_file_data));
+    struct tty_file_data *fd = file->private_data;
+    if (fd == NULL) {
+        free(file);
+        return NULL;
+    }
+    fd->input_buffer_base = NULL;
+    fd->input_buffer_pos = NULL;
     file->inode = inode;
     file->position = 0;
-    file->private_data = NULL;
     file->private_data_size = 0;
     return file;
 }
 void tty_close(VFSFile* file)
 {
+    free(file->private_data);
     free(file);
 }
 
 uint32_t tty_read(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
-    if (input_buffer_base == NULL) {
+    uint8_t** input_buffer_base = &((struct tty_file_data*)file->private_data)->input_buffer_base;
+    uint8_t** input_buffer_pos = &((struct tty_file_data*)file->private_data)->input_buffer_pos;
 
-        input_buffer_base = get_line();
-        input_buffer_pos = input_buffer_base;
+    if (*input_buffer_base == NULL) {
 
-        if (input_buffer_pos == NULL) {
+        *input_buffer_base = get_line();
+        *input_buffer_pos = *input_buffer_base;
+
+        if (*input_buffer_pos == NULL) {
             return 0;
         }
     }
 
     uint32_t read_length = buffer_size;
 
-    if (strlen((char*)input_buffer_pos) < buffer_size) {
-        read_length = strlen((char*)input_buffer_pos);
+    if (strlen((char*)*input_buffer_pos) < buffer_size) {
+        read_length = strlen((char*)*input_buffer_pos);
     }
 
-    memcpy(buffer, input_buffer_pos, read_length);
-    input_buffer_pos += read_length;
+    memcpy(buffer, *input_buffer_pos, read_length);
+    *input_buffer_pos += read_length;
 
-    if (strlen((char*)input_buffer_pos) == 0) {
-        free(input_buffer_base);
-        input_buffer_base = NULL;
-        input_buffer_pos = NULL;
+    if (strlen((char*)*input_buffer_pos) == 0) {
+        free(*input_buffer_base);
+        *input_buffer_base = NULL;
+        *input_buffer_pos = NULL;
     }
 
     return read_length;
