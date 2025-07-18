@@ -119,10 +119,10 @@ uint32_t pack_file(path file, vector<EstrOSFS::Inode>& inodes, ofstream& output_
     if (size / EstrOSFS::BLOCK_SIZE > 10) {
         uint32_t total_blocks = (size + EstrOSFS::BLOCK_SIZE - 1) / EstrOSFS::BLOCK_SIZE;
 
-        if (total_blocks > 11) {
+        if (total_blocks > 10) {
             // --- Single Indirect (blocks[10])
             vector<uint32_t> single;
-            for (uint32_t i = 11; i < min(total_blocks, (uint32_t)(11 + 256)); ++i) {
+            for (uint32_t i = 10; i < min(total_blocks, (uint32_t)(10 + 256)); ++i) {
                 single.push_back(blocks[0] + i);
             }
             if (!single.empty()) {
@@ -130,14 +130,14 @@ uint32_t pack_file(path file, vector<EstrOSFS::Inode>& inodes, ofstream& output_
             }
         }
 
-        if (total_blocks > 11 + 256) {
+        if (total_blocks > 10 + 256) {
             // --- Double Indirect (blocks[11])
             vector<uint32_t> double_blocks;
-            uint32_t remaining = total_blocks - 11 - 256;
+            uint32_t remaining = total_blocks - 10 - 256;
             for (uint32_t i = 0; i < (remaining + 255) / 256 && i < 256; ++i) {
                 vector<uint32_t> sub;
                 for (uint32_t j = 0; j < min(remaining, 256u); ++j) {
-                    sub.push_back(blocks[0] + 11 + 256 + i * 256 + j);
+                    sub.push_back(blocks[0] + 10 + 256 + i * 256 + j);
                     --remaining;
                     if (remaining == 0)
                         break;
@@ -147,16 +147,16 @@ uint32_t pack_file(path file, vector<EstrOSFS::Inode>& inodes, ofstream& output_
             blocks[11] = write_pointer_block(output_file, double_blocks);
         }
 
-        if (total_blocks > 11 + 256 + 256 * 256) {
+        if (total_blocks > 10 + 256 + 256 * 256) {
             // --- Triple Indirect (blocks[12])
-            uint32_t remaining = total_blocks - 11 - 256 - 256 * 256;
+            uint32_t remaining = total_blocks - 10 - 256 - 256 * 256;
             vector<uint32_t> triple_blocks;
             for (uint32_t i = 0; i < (remaining + 65535) / 65536 && i < 256; ++i) {
                 vector<uint32_t> double_blocks;
                 for (uint32_t j = 0; j < 256 && remaining > 0; ++j) {
                     vector<uint32_t> sub;
                     for (uint32_t k = 0; k < min(remaining, 256u); ++k) {
-                        sub.push_back(blocks[0] + 11 + 256 + 256 * 256 + i * 256 * 256 + j * 256 + k);
+                        sub.push_back(blocks[0] + 10 + 256 + 256 * 256 + i * 256 * 256 + j * 256 + k);
                         --remaining;
                         if (remaining == 0)
                             break;

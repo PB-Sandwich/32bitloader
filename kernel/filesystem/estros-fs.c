@@ -1,4 +1,5 @@
 #include "estros-fs.h"
+#include "keyboard/input.h"
 #include <filesystem/virtual-filesystem.h>
 #include <harddrive/hdd.h>
 #include <heap.h>
