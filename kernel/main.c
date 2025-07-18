@@ -161,7 +161,7 @@ int main()
 
     set_print_output("/tty");
 
-    VFSFile* file = vfs_open_file("/calc.bin", VFS_READ);
+    VFSFile* file = vfs_open_file("/ctest.bin", VFS_READ);
     if (file == NULL) {
         printf("Unable to open file\n");
         return 0;
@@ -180,7 +180,7 @@ int main()
     vfs_close_file(file);
 
     void (*entry_function)() = (void*)entry_point;
-    // entry_function();
+    entry_function();
 
     // VFSDirectory* dir
     //     = vfs_open_directory("/");
