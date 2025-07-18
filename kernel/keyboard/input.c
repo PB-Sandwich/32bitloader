@@ -1,10 +1,9 @@
-#include "input.h"
 #include <interrupts/irq_handlers.h>
+#include <keyboard/input.h>
 #include <print.h>
-#include <terminal/tty.h>
 #include <stdint.h>
-
-uint8_t buffer[32] = { '\0' };
+#include <stdlib.h>
+#include <terminal/tty.h>
 
 enum Keycode wait_for_keypress()
 {
@@ -16,9 +15,15 @@ enum Keycode wait_for_keypress()
 
 uint8_t* get_line()
 {
+    uint8_t* buffer = (uint8_t*)malloc(32);
+    if (buffer == NULL) {
+        return NULL;
+    }
+    uint32_t buffer_size = 32;
+
     buffer[0] = keycode_to_ascii(wait_for_keypress());
     pprint_char(buffer[0]);
-    int i = 1;
+    uint32_t i = 1;
     while (1) {
         enum Keycode kc = wait_for_keypress();
         if (kc == BACKSPACE && i > 0) {
@@ -43,8 +48,12 @@ uint8_t* get_line()
 
         buffer[i] = ascii;
 
-        if (i >= 31) {
-            continue;
+        if (buffer_size >= i) {
+            void* temp = realloc(buffer, buffer_size + 32);
+            if (temp == NULL) {
+                return buffer;
+            }
+            buffer = temp;
         }
 
         pprint_char(buffer[i]);
@@ -163,7 +172,7 @@ uint8_t shifted_ascii_table[256] = {
 uint8_t keycode_to_ascii(enum Keycode kc)
 {
     if (is_shifted()) {
-    return shifted_ascii_table[kc];
+        return shifted_ascii_table[kc];
     }
     return ascii_table[kc];
 }
