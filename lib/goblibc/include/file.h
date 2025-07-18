@@ -22,9 +22,9 @@ struct _IO_FILE
     unsigned char *rend;
     unsigned char *wend;
     unsigned char *wpos;
-    size_t (*read)(struct IO_FILE_S *, unsigned char *, size_t);
-    size_t (*write)(struct IO_FILE_S *, const unsigned char *, size_t);
-    off_t (*seek)(struct IO_FILE_S *, off_t, int);
+    size_t (*read)(struct _IO_FILE *, unsigned char *, size_t);
+    size_t (*write)(struct _IO_FILE *, const unsigned char *, size_t);
+    off_t (*seek)(struct _IO_FILE *, off_t, int);
     unsigned char *buf;
     int lbf;
     unsigned char *shend;

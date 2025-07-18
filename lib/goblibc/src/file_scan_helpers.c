@@ -11,8 +11,8 @@ void scan_help_file_from_string(FILE *file, const char *str)
     file->rend = (void *)-1;
     file->wend = 0;
     file->wpos = 0;
-    file->write = scan_help_str_write;
-    file->read = scan_help_str_read;
+    file->write = &scan_help_str_write;
+    file->read = &scan_help_str_read;
 }
 
 void scan_help_lim(FILE *file, off_t lim)
