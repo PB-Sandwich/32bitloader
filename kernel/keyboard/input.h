@@ -113,7 +113,7 @@ enum Keycode : uint8_t {
 };
 
 enum Keycode wait_for_keypress();
-uint8_t* get_line(); // returns the pointer to input buffer (which will get overwritten on next call)
+uint8_t* get_line();
 
 uint8_t keycode_to_ascii(enum Keycode kc);
 enum Keycode scancode_to_keycode(uint8_t sc);

@@ -1,9 +1,11 @@
 #include "tty.h"
-#include "filesystem/virtual-filesystem.h"
-#include "keyboard/input.h"
+#include <filesystem/virtual-filesystem.h>
 #include <heap.h>
+#include <keyboard/input.h>
+#include <print.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 void print_char(uint8_t chr);
 void print_string(uint8_t* str);
@@ -18,6 +20,9 @@ uint8_t cursor_col = 0;
 
 uint8_t color = White | Black << 4;
 
+uint8_t* input_buffer_base = NULL;
+uint8_t* input_buffer_pos = NULL;
+
 VFSFile* tty_open(VFSIndexNode* inode)
 {
     VFSFile* file = (VFSFile*)malloc(sizeof(VFSFile));
@@ -31,9 +36,35 @@ void tty_close(VFSFile* file)
 {
     free(file);
 }
+
 uint32_t tty_read(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
-    return 0;
+    if (input_buffer_base == NULL) {
+
+        input_buffer_base = get_line();
+        input_buffer_pos = input_buffer_base;
+
+        if (input_buffer_pos == NULL) {
+            return 0;
+        }
+    }
+
+    uint32_t read_length = buffer_size;
+
+    if (strlen((char*)input_buffer_pos) < buffer_size) {
+        read_length = strlen((char*)input_buffer_pos);
+    }
+
+    memcpy(buffer, input_buffer_pos, read_length);
+    input_buffer_pos += read_length;
+
+    if (strlen((char*)input_buffer_pos) == 0) {
+        free(input_buffer_base);
+        input_buffer_base = NULL;
+        input_buffer_pos = NULL;
+    }
+
+    return read_length;
 }
 uint32_t tty_write(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
