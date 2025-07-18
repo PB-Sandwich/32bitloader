@@ -4,29 +4,29 @@
  * @brief Set of helper functions used during scan operations
  * @version 0.1
  * @date 2025-07-07
- * 
+ *
  * @copyright Copyright (c) 2025
- * 
+ *
  */
 #pragma once
 #include <file.h>
+#include <stdint.h>
+#include <bits/alltypes.h>
 
-/// @brief Scan an integer value 
+/// @brief Scan an integer value
 /// @param file Source from which to read the value
 /// @param base Base of the value
-/// @param pok 
-/// @param lim 
-/// @return 
+/// @param pok
+/// @param lim
+/// @return
 unsigned long long gob_intscan(FILE *file, unsigned base, int pok, unsigned long long lim);
 
 /// @brief Scan a floating point value
 /// @param file Source from which to read the value
 /// @param prec Precision
-/// @param pok 
-/// @return 
+/// @param pok
+/// @return
 long double gob_floatscan(FILE *file, int prec, int pok);
-
-
 
 /// @brief Create a pseudo file from a null terminated string
 /// @param file A non-null file pointer to be initialized
@@ -59,3 +59,7 @@ int __uflow(FILE *it_str);
 /// @param file Destination file
 /// @return
 uint32_t scan_help_write_str(const unsigned char *restrict str, uint32_t len, FILE *restrict file);
+
+size_t scan_help_str_read(FILE *, unsigned char *, size_t);
+
+size_t scan_help_str_write(FILE *, const unsigned char *, size_t);

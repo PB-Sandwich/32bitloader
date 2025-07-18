@@ -13,7 +13,8 @@ APPS := $(DESTINATION_APP_DIR)/old_demo.$(EXE_EXT)\
 		$(DESTINATION_APP_DIR)/minesweeper.$(EXE_EXT)\
 		$(DESTINATION_APP_DIR)/brainfuck.$(EXE_EXT)\
 	  	$(DESTINATION_APP_DIR)/new_test.$(EXE_EXT)\
-		$(DESTINATION_APP_DIR)/calc.$(EXE_EXT)
+		$(DESTINATION_APP_DIR)/calc.$(EXE_EXT)\
+		$(DESTINATION_APP_DIR)/ctest.$(EXE_EXT)
 
 	
 all: prepare $(APPS)
