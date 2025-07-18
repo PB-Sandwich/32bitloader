@@ -9,6 +9,10 @@ void scan_help_file_from_string(FILE *file, const char *str)
     file->buf = str;
     file->rpos = str;
     file->rend = (void *)-1;
+    file->wend = 0;
+    file->wpos = 0;
+    file->write = &scan_help_str_write;
+    file->read = &scan_help_str_read;
 }
 
 void scan_help_lim(FILE *file, off_t lim)
@@ -80,7 +84,26 @@ int __uflow(FILE *file)
 
 uint32_t scan_help_write_str(const unsigned char *restrict str, uint32_t len, FILE *restrict file)
 {
-    for (uint32_t i = 0; i < len; i++)
+    if (file->write == 0)
+    {
+        return 0;
+    }
+    if (len > file->wend - file->wpos)
+    {
+        return file->write(file, str, len);
+    }
+    // TODO: This requires additional logic for handling other cases which i don't fully get
+    return 0;
+}
+
+size_t scan_help_str_read(FILE *, unsigned char *, size_t)
+{
+    return 0;
+}
+
+size_t scan_help_str_write(FILE *file, const unsigned char *str, size_t size)
+{
+    for (size_t i = 0; i < size; i++)
     {
         *file->rpos = str[i];
         file->rpos++;
