@@ -31,7 +31,9 @@ void syscall_c(struct syscall_regs* regs)
         vfs_close_file((void*)regs->ebx);
         break;
     case 0x04:
+        __asm__("sti\n");
         regs->eax = vfs_read((void*)regs->ebx, (void*)regs->edx, regs->ecx);
+        __asm__("cli\n");
         break;
     case 0x05:
         regs->eax = vfs_write((void*)regs->ebx, (void*)regs->edx, regs->ecx);

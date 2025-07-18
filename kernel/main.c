@@ -161,7 +161,7 @@ int main()
 
     set_print_output("/tty");
 
-    VFSFile* file = vfs_open_file("/calc.bin", VFS_READ);
+    VFSFile* file = vfs_open_file("/new_test.bin", VFS_READ);
     if (file == NULL) {
         printf("Unable to open file\n");
         return 0;
