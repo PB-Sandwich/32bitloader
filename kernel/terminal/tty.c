@@ -32,7 +32,7 @@ VFSFile* tty_open(VFSIndexNode* inode)
         return NULL;
     }
     file->private_data = (void*)malloc(sizeof(struct tty_file_data));
-    struct tty_file_data *fd = file->private_data;
+    struct tty_file_data* fd = file->private_data;
     if (fd == NULL) {
         free(file);
         return NULL;
@@ -55,6 +55,12 @@ uint32_t tty_read(VFSFile* file, void* buffer, uint32_t buffer_size)
     uint8_t** input_buffer_base = &((struct tty_file_data*)file->private_data)->input_buffer_base;
     uint8_t** input_buffer_pos = &((struct tty_file_data*)file->private_data)->input_buffer_pos;
 
+    if (*input_buffer_base == NULL && strlen((char*)*input_buffer_pos) == 0) {
+        free(*input_buffer_base);
+        *input_buffer_base = NULL;
+        *input_buffer_pos = NULL;
+    }
+
     if (*input_buffer_base == NULL) {
 
         *input_buffer_base = get_line();
@@ -73,12 +79,6 @@ uint32_t tty_read(VFSFile* file, void* buffer, uint32_t buffer_size)
 
     memcpy(buffer, *input_buffer_pos, read_length);
     *input_buffer_pos += read_length;
-
-    if (strlen((char*)*input_buffer_pos) == 0) {
-        free(*input_buffer_base);
-        *input_buffer_base = NULL;
-        *input_buffer_pos = NULL;
-    }
 
     return read_length;
 }
