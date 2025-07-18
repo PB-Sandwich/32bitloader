@@ -15,6 +15,11 @@ mov ecx, 1000
 mov edx, str1
 int 0x40
 
+mov eax, 0x05
+mov ecx, 4
+mov edx, str1
+int 0x40
+
 hlt
 hlt
 hlt

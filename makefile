@@ -96,7 +96,7 @@ $(BUILD_DIR)/kernel/boot.bin: $(KERNEL_SOURCE_DIR)/boot.asm
 $(BUILD_DIR)/kernel/%.c.o: $(KERNEL_SOURCE_DIR)/%.c
 	@echo "Compiling $<"
 	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) -mno-80387 -mno-sse -mno-mmx -c -o $@ $<
+	@$(CC) $(CFLAGS) -mno-80387 -c -o $@ $<
 
 # interrupts
 $(BUILD_DIR)/kernel/%.int.c.o: $(KERNEL_SOURCE_DIR)/%.c
