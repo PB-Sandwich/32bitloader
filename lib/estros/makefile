@@ -10,7 +10,7 @@ LIB_NAME := libestros.a
 
 LIB_PATH := $(BUILD_DIR)/$(LIB_NAME)
 
-TARGETS := $(BUILD_DIR)/
+TARGETS := 
 
 ARCHIVER := ar
 ARCHIVER_FLAGS := rcs

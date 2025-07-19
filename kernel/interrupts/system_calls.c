@@ -39,11 +39,13 @@ void syscall_c(struct syscall_regs* regs)
         regs->eax = vfs_write((void*)regs->ebx, (void*)regs->edx, regs->ecx);
         break;
     case 0x06:
-        vfs_ioctl((void*)regs->ebx, &regs->ecx, &regs->edx);
+        vfs_ioctl((void*)regs->ebx, (uint32_t*)regs->ecx, (uint32_t*)regs->edx);
         break;
     case 0x07:
+        vfs_seek((void*)regs->ebx, regs->ecx, regs->edx);
         break;
     case 0x08:
+        regs->ecx = vfs_tell((void*)regs->ebx);
         break;
     case 0x09:
         break;

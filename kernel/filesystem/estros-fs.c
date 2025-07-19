@@ -1,5 +1,4 @@
 #include "estros-fs.h"
-#include "keyboard/input.h"
 #include <filesystem/virtual-filesystem.h>
 #include <harddrive/hdd.h>
 #include <heap.h>
@@ -352,7 +351,7 @@ uint32_t fs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
 
         uint32_t i;
         for (i = 0; i < buffer_size; i++) {
-            ((uint8_t*)buffer)[i] = fd->data[i + file->position % (BLOCK_SIZE * (BUFFER_SIZE_BLOCKS - 1))];
+            ((uint8_t*)buffer)[i] = fd->data[i + file->position - fd->range_low];
         }
         file->position += i;
         bytes_read += i;
