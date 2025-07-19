@@ -1,36 +1,27 @@
 #include <stdint.h>
-
 #include <string.h>
-void print(const char *str, uint32_t len)
-{
-    uint32_t stdout = 0;
-    asm("int $0x40" : "=b"(stdout) : "a"(1));
-    asm("int $0x40" ::"a"(5), "b"(stdout), "c"(len), "d"(str) : "memory");
-}
-
-uint32_t read(char *buffer, uint32_t len)
-{
-    uint32_t stdin = 0;
-    uint32_t res = 0;
-    asm("int $0x40" : "=c"(stdin) : "a"(1));
-    asm("int $0x40" : "=a"(res) : "a"(4), "b"(stdin), "c"(len), "d"(buffer) : "memory");
-    return res;
-}
-
-void clear()
-{
-}
+#include <stdlib.h>
+#include <format.h>
+#include <stdio.h>
+#include <estros.h>
 
 int main()
 {
-    const char msg[] = "hello world. Type stuff: ";
-    const char msg2[] = "\n   your input:";
+    char sprintf_test_buffer_1[255];
+    char user_math_buffer[255];
     char buffer[1024];
     memset(buffer, 0, sizeof(buffer));
-    // clear();
-    print(msg, sizeof(msg));
-    uint32_t bytes_read = read(buffer, 10);
-    print(msg2, sizeof(msg2));
-    print(buffer, 10);
+    sys_print("Hello world in c! Here are some test numbers to test if stuff works! \n", 71);
+    gob_sprintf(sprintf_test_buffer_1, "int: %d; float: %f; hex: %u\n", 69420, 69.420f, 4096);
+    sys_print(sprintf_test_buffer_1, strlen(sprintf_test_buffer_1));
+
+    sys_print("Type a *single* float value to do some math: ", 45);
+    uint32_t bytes_read = sys_read(buffer, 10);
+    float user_value = 0;
+    gob_sscanf(buffer, "%f", &user_value);
+    sys_print(buffer, 10);
+    sys_print("\n", 1);
+    gob_sprintf(user_math_buffer, "%.3f + %.4f = %.2f\n", 69.420f, user_value, user_value + 69.420f);
+    sys_print(user_math_buffer, strlen(user_math_buffer));
     return 0;
 }

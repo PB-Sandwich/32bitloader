@@ -2,7 +2,7 @@
 
 INCLUDE_DIR := lib/goblibc/include
 CC := clang
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -msoft-float -I $(INCLUDE_DIR)
+CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector  -I $(INCLUDE_DIR)
 BUILD_DIR := build/lib/goblibc
 SOURCE_DIR := lib/goblibc/src
 

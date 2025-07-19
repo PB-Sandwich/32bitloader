@@ -6,7 +6,7 @@ LIBC_NAME := goblibc
 LIBC_INCLUDE_DIR := lib/goblibc/include
 
 CC := gcc
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -msoft-float -fno-stack-protector -mno-80387 -mno-sse -mno-mmx -I $(LIBC_INCLUDE_DIR)
+CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(LIBC_INCLUDE_DIR)
 LD := ld
 LDFLAGS := -m elf_i386 -nostdlib -T apps/$(PROJECT_NAME)/linker.ld
 

@@ -178,3 +178,14 @@ struct KernelExports
 };
 
 uint16_t* get_text_buffer_address();
+
+/// @brief Wrapper around syscall used for printing text into the standard output
+/// @param str Pointer to the string to be displayed
+/// @param len Length of the string
+void sys_print(const char *str, uint32_t len);
+
+/// @brief Wrapper around syscall used for reading text from standard input
+/// @param buffer Pointer to the buffer where symbols will be written to 
+/// @param len Length of the buffer
+/// @return How many bytes were written
+uint32_t sys_read(char *buffer, uint32_t len);
