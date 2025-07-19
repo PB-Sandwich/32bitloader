@@ -324,7 +324,6 @@ static char *gob_format_unsigned(uintmax_t value, char *str)
     }                                         \
     p = MAX(p, z - a + !arg.i);
 
-
 int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_arg, int *nl_type)
 {
     char *fmt_start;
@@ -836,10 +835,10 @@ static int gob_format_float(FILE *file, long double value, int width, int p, int
         char *str = (t & 32) ? "inf" : "INF";
         if (value != value)
             str = (t & 32) ? "nan" : "NAN";
-        pad(str, ' ', width, 3 + pl, fl & ~ZERO_PAD);
-        out(str, prefix, pl);
-        out(str, str, 3);
-        pad(str, ' ', width, 3 + pl, fl ^ LEFT_ADJ);
+        pad(file, ' ', width, 3 + pl, fl & ~ZERO_PAD);
+        out(file, prefix, pl);
+        out(file, str, 3);
+        pad(file, ' ', width, 3 + pl, fl ^ LEFT_ADJ);
         return MAX(width, 3 + pl);
     }
 
@@ -881,9 +880,9 @@ static int gob_format_float(FILE *file, long double value, int width, int p, int
         str_ptr = buf;
         do
         {
-            int value = value;
-            *str_ptr++ = xdigits[value] | (t & 32);
-            value = 16 * (value - value);
+            int x = value;
+            *str_ptr++ = xdigits[x] | (t & 32);
+            value = 16 * (value - x);
             if (str_ptr - buf == 1 && (value || p > 0 || (fl & ALT_FORM)))
                 *str_ptr++ = '.';
         } while (value);
@@ -929,9 +928,9 @@ static int gob_format_float(FILE *file, long double value, int width, int p, int
         int sh = MIN(29, e2);
         for (d = z - 1; d >= a; d--)
         {
-            uint64_t value = ((uint64_t)*d << sh) + carry;
-            *d = value % 1000000000;
-            carry = value / 1000000000;
+            uint64_t x = ((uint64_t)*d << sh) + carry;
+            *d = x % 1000000000;
+            carry = x / 1000000000;
         }
         if (carry)
             *--a = carry;
@@ -970,30 +969,30 @@ static int gob_format_float(FILE *file, long double value, int width, int p, int
     j = p - ((t | 32) != 'f') * e - ((t | 32) == 'g' && p);
     if (j < 9 * (z - r - 1))
     {
-        uint32_t value;
+        uint32_t x;
         /* We avoid C'str broken division of negative numbers */
         d = r + 1 + ((j + 9 * LDBL_MAX_EXP) / 9 - LDBL_MAX_EXP);
         j += 9 * LDBL_MAX_EXP;
         j %= 9;
         for (i = 10, j++; j < 9; i *= 10, j++)
             ;
-        value = *d % i;
+        x = *d % i;
         /* Are there any significant digits past j? */
-        if (value || d + 1 != z)
+        if (x || d + 1 != z)
         {
             long double round = 2 / LDBL_EPSILON;
             long double small;
             if ((*d / i & 1) || (i == 1000000000 && d > a && (d[-1] & 1)))
                 round += 2;
-            if (value < i / 2)
+            if (x < i / 2)
                 small = 0x0.8p0;
-            else if (value == i / 2 && d + 1 == z)
+            else if (x == i / 2 && d + 1 == z)
                 small = 0x1.0p0;
             else
                 small = 0x1.8p0;
             if (pl && *prefix == '-')
                 round *= -1, small *= -1;
-            *d -= value;
+            *d -= x;
             /* Decide whether to round by probing round+small */
             if (round + small != round)
             {
@@ -1091,7 +1090,7 @@ static int gob_format_float(FILE *file, long double value, int width, int p, int
                     *--str = '0';
             else if (str == buf + 9)
                 *--str = '0';
-            out(str, str, buf + 9 - str);
+            out(file, str, buf + 9 - str);
         }
         if (p || (fl & ALT_FORM))
             out(file, ".", 1);
@@ -1100,7 +1099,7 @@ static int gob_format_float(FILE *file, long double value, int width, int p, int
             char *str = gob_format_unsigned(*d, buf + 9);
             while (str > buf)
                 *--str = '0';
-            out(str, str, MIN(9, p));
+            out(file, str, MIN(9, p));
         }
         pad(file, '0', p + 9, 9, 0);
     }
@@ -1118,11 +1117,11 @@ static int gob_format_float(FILE *file, long double value, int width, int p, int
                     *--str = '0';
             else
             {
-                out(str, str++, 1);
+                out(file, str++, 1);
                 if (p > 0 || (fl & ALT_FORM))
-                    out(str, ".", 1);
+                    out(file, ".", 1);
             }
-            out(str, str, MIN(buf + 9 - str, p));
+            out(file, str, MIN(buf + 9 - str, p));
             p -= buf + 9 - str;
         }
         pad(file, '0', p + 18, 18, 0);

@@ -1,38 +1,61 @@
 #pragma once
 #include <float.h>
 #include <stdint.h>
+#include <endian.h>
 #define INFINITY HUGE_VALF
 
 #define HUGE_VALF 1e10000f
 #define HUGE_VALL 1e10000L
+
+#ifndef _IEEE_WORD_ORDER
+#define	_IEEE_WORD_ORDER	__BYTE_ORDER
+#endif
+
+#define _LITTLE_ENDIAN __LITTLE_ENDIAN
+#define _BIG_ENDIAN __BIG_ENDIAN
 
 /* This will raise an "invalid" exception outside static initializers,
    but is the best that can be done in ISO C while remaining a
    constant expression.  */
 #define NAN (0.0f / 0.0f)
 
-union IEEEf2bits
-{
-	float f;
-	struct
-	{
-		unsigned int man : 23;
-		unsigned int exp : 8;
-		unsigned int sign : 1;
+union IEEEf2bits {
+	float	f;
+	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+		unsigned int	man	:23;
+		unsigned int	exp	:8;
+		unsigned int	sign	:1;
+#else /* _BIG_ENDIAN */
+		unsigned int	sign	:1;
+		unsigned int	exp	:8;
+		unsigned int	man	:23;
+#endif
 	} bits;
 };
 
-union IEEEd2bits
-{
-	double d;
-	struct
-	{
-		unsigned int manl : 32;
-		unsigned int manh : 20;
-		unsigned int exp : 11;
-		unsigned int sign : 1;
+union IEEEd2bits {
+	double	d;
+	struct {
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+#if _IEEE_WORD_ORDER == _LITTLE_ENDIAN
+		unsigned int	manl	:32;
+#endif
+		unsigned int	manh	:20;
+		unsigned int	exp	:11;
+		unsigned int	sign	:1;
+#if _IEEE_WORD_ORDER == _BIG_ENDIAN
+		unsigned int	manl	:32;
+#endif
+#else /* _BIG_ENDIAN */
+		unsigned int	sign	:1;
+		unsigned int	exp	:11;
+		unsigned int	manh	:20;
+		unsigned int	manl	:32;
+#endif
 	} bits;
 };
+
 union IEEEl2bits
 {
 	long double e;
