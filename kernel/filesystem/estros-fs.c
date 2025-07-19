@@ -381,14 +381,15 @@ uint32_t fs_write(VFSFile* file, void* buffer, uint32_t buffer_size)
 
     uint32_t i;
     for (i = 0; i < buffer_size; i++) {
-        fd->data[i + file->position % (BLOCK_SIZE * 5)] = ((uint8_t*)buffer)[i];
+        fd->data[i + file->position - fd->range_low] = ((uint8_t*)buffer)[i];
         file->inode->size++;
     }
+    file->position += i;
     uint32_t number_to_write = 5;
-    if (number_to_write > file->inode->size / BLOCK_SIZE) {
+    if (number_to_write > (file->inode->size / BLOCK_SIZE) + 1) {
         number_to_write = (file->inode->size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     }
-    harddrive_write_blocks(fd->data, file->inode->private_data, fd->range_low, 5);
+    harddrive_write_blocks(fd->data, file->inode->private_data, fd->range_low, number_to_write);
 
     return i;
 }
