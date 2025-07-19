@@ -33,7 +33,7 @@ struct App {
 
 int main();
 
-void kernel_entry(struct GDT* gdt)
+__attribute__((section(".text.start"))) void kernel_entry(struct GDT* gdt)
 {
     // enable sse
     // https://wiki.osdev.org/SSE
@@ -169,7 +169,7 @@ int main()
 
     set_print_output("/tty");
 
-    VFSFile* file = vfs_open_file("/ctest.bin", VFS_READ);
+    VFSFile* file = vfs_open_file("/new_test.bin", VFS_READ);
     if (file == NULL) {
         printf("Unable to open file\n");
         return 0;
@@ -200,9 +200,6 @@ int main()
     // for (int i = 0; i < dir->entries_length; i++) {
     //     printf("Entry: %s\n", dir->entries[i].path);
     // }
-    //
-    // void* file2 = vfs_open_file("/tty", 0);
-    // vfs_write(file2, "Ha", 2);
 
     return 0;
 }

@@ -24,6 +24,9 @@ int memcmp(const void* buf1, const void* buf2, uint32_t size)
     const uint8_t* u8buf2 = buf2;
     for (uint32_t i = 0; i < size; i++) {
         sum += u8buf1[i] - u8buf2[i];
+        if (sum != 0) {
+            return sum;
+        }
     }
     return sum;
 }

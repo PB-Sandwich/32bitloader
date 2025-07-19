@@ -72,6 +72,21 @@ ecx
 edx
 ```
 
+### 0x07 seek
+```
+input
+ebx = file pointer
+ecx = offset
+edx = whence
+```
+
+### 0x08 tell
+```
+input
+ebx = file pointer
+ouput
+ecx = position
+```
 
 
 ## File System

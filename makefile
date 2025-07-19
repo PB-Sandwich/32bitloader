@@ -33,7 +33,7 @@ TARGETS_BIN := $(BUILD_DIR)/kernel/boot.bin
 TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
 
 
-CC := clang
+CC := gcc
 CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -Os -I $(KERNEL_SOURCE_DIR)
 LD := ld
 LDFLAGS := -m elf_i386 -nostdlib -T linker.ld 
@@ -70,6 +70,12 @@ kernel: $(TARGETS)
 	@echo "Making raw binary"
 	@objcopy -O binary $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/kernel.bin
 	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).bin
+
+	@filesize=$$(stat -c%s $(BUILD_DIR)/$(NAME).bin); \
+	if [ $$filesize -gt 37888 ]; then \
+		echo "Error: $(BUILD_DIR)/$(NAME).bin is $$filesize bytes (limit is 37888)"; \
+		exit 1; \
+	fi
 
 filesystem: tools
 	@echo "-------------------------------------"
