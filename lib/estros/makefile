@@ -16,7 +16,7 @@ ARCHIVER := ar
 ARCHIVER_FLAGS := rcs
 
 all: $(TARGETS)
-	@echo "Building c lib"
+	@echo "Building estros lib"
 	@mkdir -p $(BUILD_DIR)
 	$(ARCHIVER) $(ARCHIVER_FLAGS) $(LIB_PATH) $(TARGETS)
 
@@ -24,7 +24,4 @@ $(BUILD_DIR)/%.c.o: $(SOURCE_DIR)/%.c
 	@echo "Compiling $<"
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c -o $@ $<
-
-
-
 

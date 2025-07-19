@@ -1,6 +1,6 @@
 
 .PHONY: all prepare
-DESTINATION_APP_DIR := build/root
+DESTINATION_APP_DIR := build/root/apps
 BUILD_DIR := build/apps
 SOURCE_DIR := apps
 EXE_EXT := bin

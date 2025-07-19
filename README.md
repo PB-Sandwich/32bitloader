@@ -41,7 +41,6 @@ ebx = file pointer
 ```
 
 ### 0x04 read
-note: can only read in ~multiples of 1024 
 ```
 input
 ebx = file pointer

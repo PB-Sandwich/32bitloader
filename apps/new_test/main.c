@@ -18,7 +18,7 @@ int main()
     }
     char buffer[512];
     read_file(file, buffer, 512);
-    write_file(ad.stdout, buffer, strlen(buffer));
+    write_file(ad.stdout, buffer, 512);
 
     return 0;
 }
