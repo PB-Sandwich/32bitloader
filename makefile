@@ -26,7 +26,7 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/filesystem/estros-fs.c.o \
 		$(BUILD_DIR)/kernel/interrupts/error_handlers.int.c.o \
 		$(BUILD_DIR)/kernel/interrupts/irq_handlers.int.c.o \
-		$(BUILD_DIR)/kernel/interrupts/system_calls.c.o \
+		$(BUILD_DIR)/kernel/interrupts/system_calls.int.c.o \
 		$(BUILD_DIR)/kernel/interrupts/system_calls.asm.o
 
 TARGETS_BIN := $(BUILD_DIR)/kernel/boot.bin
@@ -34,7 +34,7 @@ TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
 
 
 CC := clang
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(KERNEL_SOURCE_DIR)
+CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -Os -I $(KERNEL_SOURCE_DIR)
 LD := ld
 LDFLAGS := -m elf_i386 -nostdlib -T linker.ld 
 
@@ -96,7 +96,7 @@ $(BUILD_DIR)/kernel/boot.bin: $(KERNEL_SOURCE_DIR)/boot.asm
 $(BUILD_DIR)/kernel/%.c.o: $(KERNEL_SOURCE_DIR)/%.c
 	@echo "Compiling $<"
 	@mkdir -p $(dir $@)
-	@$(CC) $(CFLAGS) -mno-80387 -c -o $@ $<
+	@$(CC) $(CFLAGS) -c -o $@ $<
 
 # interrupts
 $(BUILD_DIR)/kernel/%.int.c.o: $(KERNEL_SOURCE_DIR)/%.c

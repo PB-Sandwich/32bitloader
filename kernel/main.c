@@ -35,6 +35,15 @@ int main();
 
 void kernel_entry(struct GDT* gdt)
 {
+    // enable sse
+    // https://wiki.osdev.org/SSE
+    __asm__ volatile("mov %cr0, %eax\n\t"
+                     "and $0xfffb, %ax\n\t"
+                     "or  $0x2, %ax\n\t"
+                     "mov %eax, %cr0\n\t"
+                     "mov %cr4, %eax\n\t"
+                     "or  $(3 << 9), %ax\n\t"
+                     "mov %eax, %cr4\n\t");
 
     // interrupt init
     struct IDTPointer idt_pointer;
@@ -130,16 +139,6 @@ void kernel_entry(struct GDT* gdt)
     __asm__ volatile("sti"); // reenable maskable interrupts
 
     idt_entries[0x40] = make_idt_entry((uint32_t*)syscall, 0x8, 0xE);
-
-    // enable sse
-    // https://wiki.osdev.org/SSE
-    __asm__ volatile("mov %cr0, %eax\n\t"
-                     "and $0xfffb, %ax\n\t"
-                     "or  $0x2, %ax\n\t"
-                     "mov %eax, %cr0\n\t"
-                     "mov %cr4, %eax\n\t"
-                     "or  $(3 << 9), %ax\n\t"
-                     "mov %eax, %cr4\n\t");
 
     // set stack
     __asm__ volatile(
