@@ -10,6 +10,7 @@
 #include <interrupts/irq_handlers.h>
 #include <interrupts/system_calls.h>
 #include <keyboard/input.h>
+#include <keyboard/keyboard.h>
 #include <memutils.h>
 #include <pic.h>
 #include <print.h>
@@ -187,26 +188,30 @@ void main()
 
     set_print_output("/sys/kernel.log");
 
-    VFSFile* file = vfs_open_file("/apps/calc.bin", VFS_READ);
-    if (file == NULL) {
-        printf("Unable to open file\n");
-        return;
-    }
+    vfs_create_device_file("/dev/kdb", get_keyboard_file_operations(), VFS_BLOCK_DEVICE);
 
-    uint8_t* buf = (uint8_t*)(0x300000);
-    vfs_seek(file, 4, VFS_BEG);
-    while (vfs_read(file, buf, 1024)) {
-        buf += 1024;
-    }
+    set_input_kdb_dev("/dev/kdb");
 
-    uint32_t entry_point;
-    vfs_seek(file, 0, VFS_BEG);
-    vfs_read(file, &entry_point, 4);
-
-    vfs_close_file(file);
-
-    void (*entry_function)() = (void*)entry_point;
-    entry_function();
+    // VFSFile* file = vfs_open_file("/apps/calc.bin", VFS_READ);
+    // if (file == NULL) {
+    //     printf("Unable to open file\n");
+    //     return;
+    // }
+    //
+    // uint8_t* buf = (uint8_t*)(0x300000);
+    // vfs_seek(file, 4, VFS_BEG);
+    // while (vfs_read(file, buf, 1024)) {
+    //     buf += 1024;
+    // }
+    //
+    // uint32_t entry_point;
+    // vfs_seek(file, 0, VFS_BEG);
+    // vfs_read(file, &entry_point, 4);
+    //
+    // vfs_close_file(file);
+    //
+    // void (*entry_function)() = (void*)entry_point;
+    // entry_function();
 
     // VFSDirectory* dir = vfs_open_directory("/");
     // if (dir == NULL) {

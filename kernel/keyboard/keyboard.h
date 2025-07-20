@@ -5,9 +5,8 @@
 #include <stdint.h>
 
 typedef enum : uint8_t {
-    KEY_PRESSED = 0,
-    KEY_RELEASED = 1,
-    KEY_HELD = 2,
+    KEY_PRESSED = 1,
+    KEY_RELEASED = 2,
 } KeyboardEventType;
 
 typedef struct {
