@@ -115,7 +115,7 @@ enum Keycode : uint8_t {
 void set_input_kdb_dev(char* path);
 
 enum Keycode wait_for_keypress();
-uint8_t* get_line();
+uint8_t* get_line(void (*printchar)(char));
 
 uint8_t keycode_to_ascii(enum Keycode kc, uint8_t is_shifted);
 enum Keycode scancode_to_keycode(uint8_t sc);

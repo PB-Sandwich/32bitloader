@@ -15,7 +15,6 @@ struct syscall_regs {
 
 void syscall_c(struct syscall_regs* regs)
 {
-    printf("Syscall: eax = %d\n", regs->eax);
     switch (regs->eax) {
     case 0x00:
         break;
@@ -49,6 +48,7 @@ void syscall_c(struct syscall_regs* regs)
         regs->ecx = vfs_tell((void*)regs->ebx);
         break;
     case 0x09:
+        regs->eax = vfs_create_regular_file((char*)regs->ebx);
         break;
     default:
         break;

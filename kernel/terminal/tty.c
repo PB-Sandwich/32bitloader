@@ -63,7 +63,7 @@ uint32_t tty_read(VFSFile* file, void* buffer, uint32_t buffer_size)
 
     if (*input_buffer_base == NULL) {
 
-        *input_buffer_base = get_line();
+        *input_buffer_base = get_line((void*)print_char);
         *input_buffer_pos = *input_buffer_base;
 
         if (*input_buffer_pos == NULL) {

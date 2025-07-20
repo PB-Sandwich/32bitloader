@@ -25,7 +25,7 @@ enum Keycode wait_for_keypress()
     return scancode_to_keycode(event.scancode);
 }
 
-uint8_t* get_line()
+uint8_t* get_line(void (*printchar)(char))
 {
     uint8_t* buffer = (uint8_t*)malloc(32);
     if (buffer == NULL) {
@@ -57,9 +57,9 @@ uint8_t* get_line()
 
         if (kc == KC_BACKSPACE && i > 0) {
             buffer[i] = '\0';
-            pprint_char('\b');
-            pprint_char(' ');
-            pprint_char('\b');
+            printchar('\b');
+            printchar(' ');
+            printchar('\b');
             i--;
             continue;
         }
@@ -85,10 +85,10 @@ uint8_t* get_line()
             buffer = temp;
         }
 
-        pprint_char(buffer[i]);
+        printchar(buffer[i]);
         i++;
     }
-    pprint_char('\n');
+    printchar('\n');
     return buffer;
 }
 

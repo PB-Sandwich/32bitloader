@@ -192,26 +192,26 @@ void main()
 
     set_input_kdb_dev("/dev/kdb");
 
-    // VFSFile* file = vfs_open_file("/apps/calc.bin", VFS_READ);
-    // if (file == NULL) {
-    //     printf("Unable to open file\n");
-    //     return;
-    // }
-    //
-    // uint8_t* buf = (uint8_t*)(0x300000);
-    // vfs_seek(file, 4, VFS_BEG);
-    // while (vfs_read(file, buf, 1024)) {
-    //     buf += 1024;
-    // }
-    //
-    // uint32_t entry_point;
-    // vfs_seek(file, 0, VFS_BEG);
-    // vfs_read(file, &entry_point, 4);
-    //
-    // vfs_close_file(file);
-    //
-    // void (*entry_function)() = (void*)entry_point;
-    // entry_function();
+    VFSFile* file = vfs_open_file("/apps/new_test.bin", VFS_READ);
+    if (file == NULL) {
+        printf("Unable to open file\n");
+        return;
+    }
+
+    uint8_t* buf = (uint8_t*)(0x300000);
+    vfs_seek(file, 4, VFS_BEG);
+    while (vfs_read(file, buf, 1024)) {
+        buf += 1024;
+    }
+
+    uint32_t entry_point;
+    vfs_seek(file, 0, VFS_BEG);
+    vfs_read(file, &entry_point, 4);
+
+    vfs_close_file(file);
+
+    void (*entry_function)() = (void*)entry_point;
+    entry_function();
 
     // VFSDirectory* dir = vfs_open_directory("/");
     // if (dir == NULL) {
