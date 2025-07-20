@@ -169,7 +169,7 @@ int main()
 
     set_print_output("/tty");
 
-    VFSFile* file = vfs_open_file("/apps/new_test.bin", VFS_READ);
+    VFSFile* file = vfs_open_file("/apps/imagedisplay.bin", VFS_READ);
     if (file == NULL) {
         printf("Unable to open file\n");
         return 0;
