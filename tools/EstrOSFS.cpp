@@ -212,7 +212,9 @@ uint32_t pack_directory(path directory, vector<EstrOSFS::Inode>& inodes, ofstrea
     }
 
     uint32_t blocks[13] = { 0 };
-    blocks[0] = output_file.tellp() / EstrOSFS::BLOCK_SIZE;
+    if (entries.size() > 0) {
+        blocks[0] = output_file.tellp() / EstrOSFS::BLOCK_SIZE;
+    }
 
     for (int i = 0; i < entries.size(); i++) {
         output_file.write((char*)&entries[i], sizeof(EstrOSFS::DirectoryEntry) - sizeof(string) - 4);

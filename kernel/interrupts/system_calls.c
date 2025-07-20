@@ -20,7 +20,7 @@ void syscall_c(struct syscall_regs* regs)
         break;
     case 0x01:
         regs->eax = 0x500000;
-        regs->ebx = (uint32_t)vfs_open_file("/tty", VFS_READ | VFS_WRITE);
+        regs->ebx = (uint32_t)vfs_open_file("/dev/tty", VFS_READ | VFS_WRITE);
         regs->ecx = regs->ebx;
         regs->edx = regs->ebx;
         break;
@@ -48,6 +48,7 @@ void syscall_c(struct syscall_regs* regs)
         regs->ecx = vfs_tell((void*)regs->ebx);
         break;
     case 0x09:
+        regs->eax = vfs_create_regular_file((char*)regs->ebx);
         break;
     default:
         break;

@@ -80,4 +80,10 @@ static inline uint32_t tell_file(File* file)
     return ret;
 }
 
+static inline uint32_t create_file(char* path) {
+    uint32_t ret;
+    __asm__ volatile("int $0x40\n\t" : "=a"(ret) : "a"(9), "b"(path));
+    return ret;
+}
+
 #endif

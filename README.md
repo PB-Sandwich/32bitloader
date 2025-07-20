@@ -87,6 +87,14 @@ ouput
 ecx = position
 ```
 
+### 0x09 create file
+```
+input
+ebx = file path (char*)
+output
+eax = return value (0 for success)
+```
+
 
 ## File System
 EstrOS File System v1

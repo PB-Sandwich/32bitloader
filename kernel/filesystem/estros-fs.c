@@ -3,6 +3,7 @@
 #include <harddrive/hdd.h>
 #include <heap.h>
 #include <memutils.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 enum BitMap {
@@ -20,6 +21,11 @@ struct Inode {
     uint32_t size;
     uint32_t blocks[13];
     uint32_t reserved;
+};
+
+struct InodeData {
+    uint32_t inode_number;
+    uint32_t blocks[13];
 };
 
 struct DirectoryEntry {
@@ -71,16 +77,78 @@ void fs_set_harddrive(char* path)
     return;
 };
 
-#include <print.h>
+uint32_t alloc_block()
+{
+    uint32_t block = super_block.n_blocks;
+    super_block.n_blocks++;
+    uint8_t sector[512];
+    memcpy(sector, &super_block, sizeof(struct SuperBlock));
+    vfs_seek(harddrive, 0x10000, VFS_BEG);
+    vfs_write(harddrive, sector, 512);
+    return block;
+}
+
+uint32_t alloc_inode()
+{
+    uint32_t block = super_block.n_inodes;
+    super_block.n_inodes++;
+    uint8_t sector[512];
+    memcpy(sector, &super_block, sizeof(struct SuperBlock));
+    vfs_seek(harddrive, 0x10000, VFS_BEG);
+    vfs_write(harddrive, sector, 512);
+    return block; // Out of space
+}
+
+VFSIndexNode fstovfs(struct Inode inode, uint32_t inode_number)
+{
+    VFSIndexNode vfs_inode = {
+        .type = inode.type,
+        .size = inode.size,
+        .private_data = (uint32_t*)malloc(sizeof(struct InodeData)),
+        .file_operations = get_fs_file_operations(),
+        .number_of_references = 0,
+    };
+
+    if (vfs_inode.private_data == NULL) {
+        vfs_inode.type = VFS_ERROR;
+        return vfs_inode;
+    }
+
+    struct InodeData* id = vfs_inode.private_data;
+    memcpy(id->blocks, inode.blocks, sizeof(uint32_t) * 13);
+    id->inode_number = inode_number;
+    return vfs_inode;
+}
+
+struct Inode vfstofs(VFSIndexNode* vfs_inode)
+{
+    struct Inode inode = {
+        .type = vfs_inode->type,
+        .size = vfs_inode->size,
+    };
+    memcpy(inode.blocks, ((struct InodeData*)vfs_inode->private_data)->blocks, sizeof(uint32_t) * 13);
+    return inode;
+}
+
+void write_inode(struct Inode inode, uint32_t inode_number)
+{
+    uint32_t inode_offset = ((SUPER_BLOCK_OFFSET + BLOCK_SIZE + BLOCK_BP_SIZE + INODE_BP_SIZE) / BLOCK_SIZE + 1) * BLOCK_SIZE
+        + (inode_number * INODE_SIZE);
+
+    uint8_t buffer[512];
+
+    vfs_seek(harddrive, inode_offset, VFS_BEG);
+    vfs_read(harddrive, buffer, 512);
+
+    uint32_t sub_offset = inode_number % 8;
+    memcpy(&buffer[sub_offset * INODE_SIZE], &inode, INODE_SIZE);
+
+    vfs_seek(harddrive, inode_offset, VFS_BEG);
+    vfs_write(harddrive, buffer, 512);
+}
 
 void* harddrive_load_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uint32_t num_blocks)
 {
-    void* temp = realloc(buffer, num_blocks * BLOCK_SIZE);
-    if (temp == NULL) {
-        return buffer;
-    }
-    buffer = temp;
-
     for (uint32_t i = 0; i < num_blocks; i++) {
 
         uint32_t block_n = (pos + i * BLOCK_SIZE) / BLOCK_SIZE;
@@ -147,14 +215,6 @@ void* harddrive_load_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uin
     }
 
     return buffer;
-}
-
-uint32_t alloc_block()
-{
-    uint32_t block = super_block.n_blocks;
-    super_block.n_blocks++;
-
-    return block; // Out of space
 }
 
 void harddrive_write_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uint32_t num_blocks)
@@ -277,6 +337,8 @@ void harddrive_write_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uin
 
         vfs_seek(harddrive, real_block * BLOCK_SIZE, VFS_BEG);
         vfs_write(harddrive, (uint8_t*)buffer + (i * BLOCK_SIZE), BLOCK_SIZE);
+
+        struct DirectoryEntry* dentry = (void*)((uint8_t*)buffer + (i * BLOCK_SIZE));
     }
 }
 
@@ -329,6 +391,7 @@ uint32_t fs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
     }
 
     struct FileData* fd = file->private_data;
+    struct InodeData* id = file->inode->private_data;
 
     uint32_t remaining_size = buffer_size;
     uint32_t bytes_read = 0;
@@ -339,7 +402,7 @@ uint32_t fs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
         remaining_size -= buffer_size;
 
         if (file->position + buffer_size > fd->range_high || file->position < fd->range_low || fd->range_high == fd->range_low) {
-            void* temp = harddrive_load_blocks(fd->data, file->inode->private_data, file->position, BUFFER_SIZE_BLOCKS);
+            void* temp = harddrive_load_blocks(fd->data, id->blocks, file->position, BUFFER_SIZE_BLOCKS);
             if (temp == NULL) {
                 return 0;
             }
@@ -362,6 +425,7 @@ uint32_t fs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
 uint32_t fs_write(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
     struct FileData* fd = file->private_data;
+    struct InodeData* id = file->inode->private_data;
     if (file->position + buffer_size > fd->range_high || file->position < fd->range_low || fd->range_high == fd->range_low) {
         if (file->inode->size == 0) {
 
@@ -369,7 +433,7 @@ uint32_t fs_write(VFSFile* file, void* buffer, uint32_t buffer_size)
 
         } else {
 
-            fd->data = harddrive_load_blocks(fd->data, file->inode->private_data, file->position, 5);
+            fd->data = harddrive_load_blocks(fd->data, id->blocks, file->position, 5);
             if (fd->data == NULL) {
                 return 0;
             }
@@ -381,14 +445,19 @@ uint32_t fs_write(VFSFile* file, void* buffer, uint32_t buffer_size)
 
     uint32_t i;
     for (i = 0; i < buffer_size; i++) {
-        fd->data[i + file->position % (BLOCK_SIZE * 5)] = ((uint8_t*)buffer)[i];
-        file->inode->size++;
+        fd->data[i + file->position - fd->range_low] = ((uint8_t*)buffer)[i];
+    }
+    file->position += i;
+    if (file->position > file->inode->size) {
+        file->inode->size = file->position;
     }
     uint32_t number_to_write = 5;
-    if (number_to_write > file->inode->size / BLOCK_SIZE) {
+    if (number_to_write > (file->inode->size / BLOCK_SIZE) + 1) {
         number_to_write = (file->inode->size + BLOCK_SIZE - 1) / BLOCK_SIZE;
     }
-    harddrive_write_blocks(fd->data, file->inode->private_data, fd->range_low, 5);
+    harddrive_write_blocks(fd->data, id->blocks, fd->range_low, number_to_write);
+
+    write_inode(vfstofs(file->inode), id->inode_number);
 
     return i;
 }
@@ -529,76 +598,130 @@ struct Inode resolve_inode(char* path)
     return inode;
 }
 
-VFSIndexNode fstovfs(struct Inode inode)
+uint32_t resolve_inode_number(char* path)
 {
-    VFSIndexNode vfs_inode = {
-        .type = inode.type,
-        .size = inode.size,
-        .private_data = (uint32_t*)malloc(sizeof(uint32_t) * 13),
-        .file_operations = get_fs_file_operations(),
-        .number_of_references = 0,
-    };
-
-    if (vfs_inode.private_data == NULL) {
-        vfs_inode.type = VFS_ERROR;
-        return vfs_inode;
+    while (*path == '/') {
+        path++;
     }
-    memcpy(vfs_inode.private_data, inode.blocks, sizeof(uint32_t) * 13);
-    return vfs_inode;
-}
+    uint32_t inode_number = super_block.root_inode;
+    struct Inode inode = fetch_inode(super_block.root_inode);
+    if (strlen(path) == 0) {
+        return inode_number;
+    }
+    while (1) {
+        struct DirectoryEntry* base_entry = fetch_inode_directory(inode);
+        if (base_entry == NULL) {
+            return -1;
+        }
+        struct DirectoryEntry* entry = base_entry;
 
-struct Inode vfstofs(VFSIndexNode* vfs_inode)
-{
-    struct Inode inode = {
-        .type = vfs_inode->type,
-        .size = vfs_inode->size,
-    };
-    memcpy(inode.blocks, vfs_inode->private_data, sizeof(uint32_t) * 13);
-    return inode;
+        uint32_t offset = 0;
+        for (int i = 0; i < strlen(path); i++) {
+            if (path[i] == '/') {
+                offset = i;
+                if (offset != 0) {
+                    path[i] = '\0';
+                }
+                break;
+            }
+        }
+
+        if (offset != 0) {
+            if (inode.type != DIRECTORY) {
+                free(base_entry);
+                return -1;
+            }
+        }
+
+        while (strncmp(path, entry->name, entry->name_length) != 0 || strlen(path) > entry->name_length) {
+            if (entry->entry_length == 0) {
+                free(base_entry);
+                return -1;
+            }
+            entry = (struct DirectoryEntry*)((uint8_t*)entry + entry->entry_length);
+        }
+        inode_number = entry->inode_number;
+        inode = fetch_inode(entry->inode_number);
+        if (offset != 0) {
+            path[offset] = '/';
+        }
+        path += offset + 1;
+
+        if (offset == 0) { // found
+            free(base_entry);
+            break;
+        }
+
+        free(base_entry);
+    }
+    return inode_number;
 }
 
 int create_inode(char* path, char* name, VFSFileType type)
 {
     struct Inode inode = resolve_inode(path);
 
-    if (inode.type == 0) {
+    if (inode.type != DIRECTORY) {
         return 1;
     }
 
-    struct DirectoryEntry* entry = malloc(sizeof(struct DirectoryEntry) + strlen(name));
+    char* full_path = malloc(strlen(path) + 1 + strlen(name) + 1);
 
-    entry->inode_number = super_block.n_inodes;
-    entry->entry_length = sizeof(struct DirectoryEntry) + strlen(name);
-    entry->name_length = strlen(name);
-    strncpy(entry->name, name, strlen(name));
-
-    for (uint32_t i = 0; i < entry->entry_length; i++) {
-        // harddrive_write_byte(inode.blocks, inode.size, ((uint8_t*)entry)[i]);
+    if (strlen(path) <= 1) {
+        full_path[strlen(path) + strlen(name)] = '\0';
+        strncpy(full_path, path, strlen(path));
+        strncpy(full_path + strlen(path), name, strlen(name));
+    } else {
+        full_path[strlen(path) + 1 + strlen(name)] = '\0';
+        strncpy(full_path, path, strlen(path));
+        full_path[strlen(path)] = '/';
+        strncpy(full_path + strlen(path) + 1, name, strlen(name));
     }
 
-    inode.size += entry->entry_length;
+    if (resolve_inode(full_path).type != 0) {
+        return 1; // already exists
+    }
+
+    free(full_path);
+
+    struct DirectoryEntry* new_entry = malloc(sizeof(struct DirectoryEntry) + strlen(name));
+
+    new_entry->inode_number = alloc_inode();
+    new_entry->entry_length = sizeof(struct DirectoryEntry) + strlen(name);
+    new_entry->name_length = strlen(name);
+    strncpy(new_entry->name, name, strlen(name));
+
+    uint8_t dir_buffer[BLOCK_SIZE * 2];
+    memset(dir_buffer, 0, BLOCK_SIZE * 2);
+
+    if (inode.size > 0) {
+        void* temp = harddrive_load_blocks(dir_buffer, inode.blocks, inode.size, 2);
+        if (temp == NULL) {
+            free(new_entry);
+            return 1;
+        }
+    }
+
+    struct DirectoryEntry* dentry = (void*)dir_buffer;
+
+    dentry = (struct DirectoryEntry*)((uint32_t)dentry + inode.size);
+
+    memcpy(dentry, new_entry, new_entry->entry_length);
+
+    harddrive_write_blocks(dir_buffer, inode.blocks, inode.size, 2);
+
+    inode.size += new_entry->entry_length;
+    write_inode(inode, resolve_inode_number(path));
 
     struct Inode new_inode = {
         .type = type,
         .size = 0,
-        .blocks = { 0xffffffff },
+        .blocks = { 0 },
     };
 
-    uint32_t inode_number = entry->inode_number;
+    write_inode(new_inode, new_entry->inode_number);
 
-    uint32_t inode_offset = ((SUPER_BLOCK_OFFSET + BLOCK_SIZE + BLOCK_BP_SIZE + INODE_BP_SIZE) / BLOCK_SIZE + 1) * BLOCK_SIZE
-        + (inode_number * INODE_SIZE);
-
-    uint8_t buffer[512];
-
-    vfs_seek(harddrive, inode_offset, VFS_BEG);
-    vfs_read(harddrive, buffer, 512);
-
-    uint32_t sub_offset = inode_number % 8;
-    memcpy(&buffer[sub_offset * INODE_SIZE], &new_inode, INODE_SIZE);
-
-    vfs_seek(harddrive, inode_offset, VFS_BEG);
-    vfs_write(harddrive, buffer, 512);
+    free(new_entry);
 
     return 0;
 }
@@ -612,7 +735,8 @@ VFSIndexNode get_inode(char* path)
         return vfs_inode;
     }
 
-    VFSIndexNode vfs_inode = fstovfs(inode);
+    uint32_t inode_number = resolve_inode_number(path);
+    VFSIndexNode vfs_inode = fstovfs(inode, inode_number);
 
     return vfs_inode;
 }

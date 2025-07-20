@@ -1,19 +1,31 @@
-#include <interrupts/irq_handlers.h>
-#include <keyboard/input.h>
+#include "input.h"
+#include <filesystem/virtual-filesystem.h>
+#include <heap.h>
+#include <keyboard/keyboard.h>
 #include <print.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <terminal/tty.h>
+
+VFSFile* kdb = NULL;
+
+void set_input_kdb_dev(char* path)
+{
+    if (kdb != NULL) {
+        vfs_close_file(kdb);
+    }
+    kdb = vfs_open_file(path, VFS_READ);
+}
 
 enum Keycode wait_for_keypress()
 {
-    clear_key_pressed();
-    while (!key_pressed() || ((scancode() & 0b10000000) > 0))
+    KeyboardEvent event;
+    while (!vfs_read(kdb, &event, sizeof(KeyboardEvent)))
         ;
-    return scancode_to_keycode(scancode());
+    ;
+    return scancode_to_keycode(event.scancode);
 }
 
-uint8_t* get_line()
+uint8_t* get_line(void (*printchar)(char))
 {
     uint8_t* buffer = (uint8_t*)malloc(32);
     if (buffer == NULL) {
@@ -21,21 +33,38 @@ uint8_t* get_line()
     }
     uint32_t buffer_size = 32;
 
-    buffer[0] = keycode_to_ascii(wait_for_keypress());
-    pprint_char(buffer[0]);
     uint32_t i = 1;
+    uint8_t shifted = 0;
     while (1) {
-        enum Keycode kc = wait_for_keypress();
-        if (kc == BACKSPACE && i > 0) {
+        KeyboardEvent event;
+        if (!vfs_read(kdb, &event, sizeof(KeyboardEvent))) {
+            continue;
+        }
+
+        enum Keycode kc = scancode_to_keycode(event.scancode);
+
+        if (kc == KC_LEFT_SHIFT || kc == KC_RIGHT_SHIFT) {
+            if (event.type == KEY_PRESSED) {
+                shifted = 1;
+            } else if (event.type == KEY_RELEASED) {
+                shifted = 0;
+            }
+        }
+
+        if (event.type == KEY_RELEASED) {
+            continue;
+        }
+
+        if (kc == KC_BACKSPACE && i > 0) {
             buffer[i] = '\0';
-            pprint_char('\b');
-            pprint_char(' ');
-            pprint_char('\b');
+            printchar('\b');
+            printchar(' ');
+            printchar('\b');
             i--;
             continue;
         }
 
-        uint8_t ascii = keycode_to_ascii(kc);
+        uint8_t ascii = keycode_to_ascii(kc, shifted);
 
         if (ascii == '\0') {
             continue;
@@ -56,10 +85,10 @@ uint8_t* get_line()
             buffer = temp;
         }
 
-        pprint_char(buffer[i]);
+        printchar(buffer[i]);
         i++;
     }
-    pprint_char('\n');
+    printchar('\n');
     return buffer;
 }
 
@@ -169,9 +198,9 @@ uint8_t shifted_ascii_table[256] = {
     [0x39] = ' ',
 };
 
-uint8_t keycode_to_ascii(enum Keycode kc)
+uint8_t keycode_to_ascii(enum Keycode kc, uint8_t is_shifted)
 {
-    if (is_shifted()) {
+    if (is_shifted) {
         return shifted_ascii_table[kc];
     }
     return ascii_table[kc];
