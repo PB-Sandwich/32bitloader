@@ -7,8 +7,20 @@
 #include <estros/file.h>
 #include <stdio.h>
 
+void getline(char *str, uint32_t max_len)
+{
+    char buffer[10];
+    uint32_t read = sys_read(buffer, 10);
+    
+    while(read > 0)
+    {
+        read = sys_read(str, 10);
+        str += read;
+    }
+}
 int main()
 {
+    char filename[255];
     File *file = open_file("/test.gi", ESTROS_READ);
     if (file == 0)
     {
