@@ -18,6 +18,7 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/inboutb.c.o \
 		$(BUILD_DIR)/kernel/memutils.c.o \
 		$(BUILD_DIR)/kernel/heap.c.o \
+		$(BUILD_DIR)/kernel/exit.c.o \
 		$(BUILD_DIR)/kernel/terminal/tty.c.o \
 		$(BUILD_DIR)/kernel/harddrive/ata.c.o \
 		$(BUILD_DIR)/kernel/harddrive/hdd.c.o \
@@ -86,6 +87,8 @@ filesystem: tools
 	@# fill to 0xffff
 	@truncate -s 65536 $(BUILD_DIR)/$(NAME).img
 	@mkdir -p $(FILE_SYSTEM)
+	@mkdir -p $(FILE_SYSTEM)/sys
+	@mkdir -p $(FILE_SYSTEM)/dev
 	@./build/tools/EstrOSFS pack $(BUILD_DIR)/root $(BUILD_DIR)/$(NAME).img
 	@truncate -s +1000000 $(BUILD_DIR)/$(NAME).img
 	@echo "-------------------------------------"

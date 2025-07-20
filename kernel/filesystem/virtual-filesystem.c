@@ -94,17 +94,20 @@ int vfs_create_regular_file(char* path)
     };
 
     uint32_t offset = 0;
-    for (int i = strlen(path); i > 0; i--) {
+    for (int i = strlen(path); i >= 0; i--) {
         if (path[i] == '/') {
             path[i] = '\0';
             offset = i;
+            break;
         }
     }
     char* name = path + offset + 1;
 
-    return dops.create_inode(path, name, VFS_REGULAR_FILE); // will check if it already exists
+    int ret = dops.create_inode(path, name, VFS_REGULAR_FILE); // will check if it already exists
 
     path[offset] = '/';
+
+    return ret;
 }
 
 int vfs_create_device_file(char* path, VFSFileOperations fops, VFSFileType type)
@@ -123,9 +126,27 @@ int vfs_create_device_file(char* path, VFSFileOperations fops, VFSFileType type)
     VFSIndexNode physical_inode = dops.get_inode(path);
     if (physical_inode.type != VFS_ERROR) {
         dops.free_inode_data(physical_inode);
-        return 1; // directory does not exist
+        return 1; // file already exists
     }
     dops.free_inode_data(physical_inode);
+
+    uint32_t offset = 0;
+    for (int i = strlen(path); i >= 0; i--) {
+        if (path[i] == '/') {
+            path[i] = '\0';
+            offset = i;
+            break;
+        }
+    }
+
+    VFSIndexNode dir_physical_inode = dops.get_inode(path);
+    if (dir_physical_inode.type != VFS_DIRECTORY) {
+        dops.free_inode_data(dir_physical_inode);
+        path[offset] = '/';
+        return 1; // directory does not exist
+    }
+    dops.free_inode_data(dir_physical_inode);
+    path[offset] = '/';
 
     return vfs_create_device_file_no_checks(path, fops, type);
 }

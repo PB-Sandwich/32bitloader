@@ -1,3 +1,4 @@
+#include <exit.h>
 #include <filesystem/estros-fs.h>
 #include <filesystem/virtual-filesystem.h>
 #include <harddrive/ata.h>
@@ -31,7 +32,7 @@ struct App {
     uint32_t entry;
 };
 
-int main();
+void main();
 
 __attribute__((section(".text.start"))) void kernel_entry(struct GDT* gdt)
 {
@@ -149,30 +150,47 @@ __attribute__((section(".text.start"))) void kernel_entry(struct GDT* gdt)
 
     main();
 
-    while (1)
-        ;
+    exit_kernel();
 }
 
-int main()
+void main()
 {
     init_heap((uint8_t*)0x210000, 0x10000);
 
     vfs_init();
 
-    vfs_create_device_file_no_checks("/hdd", get_hdd_file_operations(), VFS_BLOCK_DEVICE);
+    vfs_create_device_file_no_checks("/dev/hdd", get_hdd_file_operations(), VFS_BLOCK_DEVICE);
 
-    fs_set_harddrive("/hdd");
+    fs_set_harddrive("/dev/hdd");
 
     vfs_set_driver(get_fs_driver_operations());
 
-    vfs_create_device_file("/tty", get_tty_file_operations(), VFS_CHARACTER_DEVICE);
+    vfs_create_device_file("/dev/tty", get_tty_file_operations(), VFS_CHARACTER_DEVICE);
 
-    set_print_output("/tty");
+    set_print_output("/dev/tty");
 
-    VFSFile* file = vfs_open_file("/apps/new_test.bin", VFS_READ);
+    VFSFile* log_file = vfs_open_file("/sys/kernel.log", VFS_WRITE);
+    if (log_file == NULL) {
+        if (vfs_create_regular_file("/sys/kernel.log") != 0) {
+            printf("Unable to create log file /sys/kernel.log\n");
+        } else {
+            log_file = vfs_open_file("/sys/kernel.log", VFS_WRITE);
+            if (log_file == NULL) {
+                printf("Unable to open log file /sys/kernel.log\n");
+            }
+        }
+    }
+    if (log_file == NULL) {
+        return;
+    }
+    vfs_close_file(log_file);
+
+    set_print_output("/sys/kernel.log");
+
+    VFSFile* file = vfs_open_file("/apps/calc.bin", VFS_READ);
     if (file == NULL) {
         printf("Unable to open file\n");
-        return 0;
+        return;
     }
 
     uint8_t* buf = (uint8_t*)(0x300000);
@@ -190,16 +208,16 @@ int main()
     void (*entry_function)() = (void*)entry_point;
     entry_function();
 
-    // VFSDirectory* dir
-    //     = vfs_open_directory("/");
+    // VFSDirectory* dir = vfs_open_directory("/");
     // if (dir == NULL) {
     //     printf("Unable to open directory\n");
-    //     return 0;
+    //     return;
     // }
     // printf("Opened dir\n");
     // for (int i = 0; i < dir->entries_length; i++) {
     //     printf("Entry: %s\n", dir->entries[i].path);
     // }
 
-    return 0;
+    while (1)
+        ;
 }
