@@ -192,7 +192,7 @@ void main()
 
     set_input_kdb_dev("/dev/kdb");
 
-    VFSFile* file = vfs_open_file("/apps/imagedisplay.bin", VFS_READ);
+    VFSFile* file = vfs_open_file("/apps/brainfuck.bin", VFS_READ);
     if (file == NULL) {
         printf("Unable to open file\n");
         return;

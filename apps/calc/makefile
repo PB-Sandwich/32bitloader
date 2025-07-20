@@ -4,9 +4,10 @@ PROJECT_NAME := calc
 LIBC_PATH := ./build/lib/goblibc
 LIBC_NAME := goblibc
 LIBC_INCLUDE_DIR := lib/goblibc/include
+ESTROS_PATH := ./lib/estros/include/
 
 CC := clang
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(LIBC_INCLUDE_DIR)
+CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(LIBC_INCLUDE_DIR) -I $(ESTROS_PATH)
 LD := ld
 LDFLAGS := -m elf_i386 -nostdlib -T apps/$(PROJECT_NAME)/linker.ld
 
