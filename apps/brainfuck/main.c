@@ -34,7 +34,8 @@ enum CodeRunResult
     ECRR_MemoryOutOfBounds,
     ECRR_UnmatchedPair,
     ECRR_ForcedExit,
-    ECRR_Invalid
+    ECRR_Invalid,
+    ECRR_ExpectInput
 };
 
 enum EditorMode
@@ -42,6 +43,8 @@ enum EditorMode
     EEM_Editing,
     EEM_Command,
     EEM_Running,
+    EEM_RunningWaitingForInput,
+    EEM_RunningFinished,
     EEM_ViewingHelp,
     EEM_Exit
 };
@@ -86,9 +89,10 @@ typedef struct
     int32_t prev_cursor_pos;
     uint32_t command_display_offset;
     bool shift_state;
+    CodeExecutionData exec_data;
 } AppState;
 
-enum CodeRunResult step_code(CodeExecutionData *data)
+enum CodeRunResult step_code(CodeExecutionData *data, bool has_input, char input)
 {
     if (data == NULL)
     {
@@ -124,7 +128,11 @@ enum CodeRunResult step_code(CodeExecutionData *data)
         sys_print(data->memory + data->mem_pos, 1);
         break;
     case ',':
-        data->memory[data->mem_pos] = 0; // keyboard_wait_for_ascii_press();
+        if (!has_input)
+        {
+            return ECRR_ExpectInput;
+        }
+        data->memory[data->mem_pos] = input; // keyboard_wait_for_ascii_press();
         break;
     case '[':
         if (data->memory[data->mem_pos] == 0)
@@ -173,6 +181,7 @@ enum CodeRunResult step_code(CodeExecutionData *data)
         }
         break;
     }
+    data->current_code_offset++;
     return ECRR_Unfinished;
 }
 
@@ -333,6 +342,7 @@ void command_mode(AppState *app, Input input)
         else if (strncmp(app->command_buffer, "run", 50) == 0 || strncmp(app->command_buffer, "r", 50) == 0)
         {
             app->current_mode = EEM_Running;
+            init_exec_data(&app->exec_data, app->code_buffer, sizeof(app->code_buffer));
             return;
         }
 
@@ -367,25 +377,38 @@ void command_mode(AppState *app, Input input)
     }
 }
 
-void run_mode(AppState *app, Input input)
+void run_mode(AppState *app, bool has_input, Input input)
 {
+    if (has_input && input.keycode == KC_ESC)
+    {
+        write_text_to_status_bar("Execution interrupted! TAB to edit code", ((EC_Yellow) << 4 | EC_Black), app->command_text_buffer);
+        app->current_mode = EEM_RunningFinished;
+        return;
+    }
     sys_clear();
-    // enum CodeRunResult res = run_code(app->code_buffer, sizeof(app->code_buffer));
-    // switch (res)
-    // {
-    // case ECRR_Success:
-    //     write_text_to_status_bar("Finished! TAB to edit code", ((EC_Green) << 4 | EC_White), app->command_text_buffer);
-    //     break;
-    // case ECRR_MemoryOutOfBounds:
-    //     write_text_to_status_bar("Pointer out of bounds! TAB to edit code", ((EC_Red) << 4 | EC_White), app->command_text_buffer);
-    //     break;
-    // case ECRR_UnmatchedPair:
-    //     write_text_to_status_bar("Unmatched brackets! TAB to edit code", ((EC_Red) << 4 | EC_White), app->command_text_buffer);
-    //     break;
-    // case ECRR_ForcedExit:
-    //     write_text_to_status_bar("Execution interrupted! TAB to edit code", ((EC_Yellow) << 4 | EC_Black), app->command_text_buffer);
-    //     break;
-    // }
+    enum CodeRunResult res = step_code(&app->exec_data, has_input, keycode_to_ascii(input.keycode, input.shift_pressed));
+    switch (res)
+    {
+    case ECRR_ExpectInput:
+        app->current_mode = EEM_RunningWaitingForInput;
+        break;
+    case ECRR_Success:
+        write_text_to_status_bar("Finished! TAB to edit code", ((EC_Green) << 4 | EC_White), app->command_text_buffer);
+        app->current_mode = EEM_RunningFinished;
+        break;
+    case ECRR_MemoryOutOfBounds:
+        write_text_to_status_bar("Pointer out of bounds! TAB to edit code", ((EC_Red) << 4 | EC_White), app->command_text_buffer);
+        app->current_mode = EEM_RunningFinished;
+        break;
+    case ECRR_UnmatchedPair:
+        write_text_to_status_bar("Unmatched brackets! TAB to edit code", ((EC_Red) << 4 | EC_White), app->command_text_buffer);
+        app->current_mode = EEM_RunningFinished;
+        break;
+    case ECRR_Invalid:
+        write_text_to_status_bar("Invalid app situation occurred! PANIC! TAB to edit code", ((EC_Yellow) << 4 | EC_Black), app->command_text_buffer);
+        app->current_mode = EEM_RunningFinished;
+        break;
+    }
 }
 
 void help_mode(AppState *app, Input input)
@@ -407,7 +430,6 @@ int main()
     app.text_buffer = get_text_buffer_address();
     app.command_text_buffer = &app.text_buffer[80 * 24 + 1];
     app.current_mode = EEM_Command;
-    sys_clear();
 
     app.code_len = 0;
     app.code_text_offset = 0;
@@ -422,38 +444,61 @@ int main()
     app.command_display_offset = 0;
     app.shift_state = false;
 
-    // sys_clear();
+    sys_clear();
     app.command_text_buffer[-1] = (((EC_Black << 4) | EC_Green) << 8) | ':';
     while (app.current_mode != EEM_Exit)
     {
-        KeyboardEvent event;
-        while (!read_file(app.kdb, &event, sizeof(KeyboardEvent)))
-            ;
-        if (event.scancode == KC_LEFT_SHIFT || event.scancode == KC_RIGHT_SHIFT)
+        if (app.current_mode == EEM_Running)
         {
-            app.shift_state = event.type == KEY_PRESSED;
+            KeyboardEvent event;
+            Input input;
+            uint32_t in_len = read_file(app.kdb, &event, sizeof(KeyboardEvent));
+            if (in_len > 0)
+            {
+                input.keycode = scancode_to_keycode(event.scancode);
+                input.shift_pressed = app.shift_state;
+            }
+            run_mode(&app, in_len > 0, input);
         }
-        if (event.type == KEY_RELEASED)
+        else
         {
-            continue;
-        }
-        Input input;
-        input.keycode = scancode_to_keycode(event.scancode);
-        input.shift_pressed = app.shift_state;
-        switch (app.current_mode)
-        {
-        case EEM_ViewingHelp:
-            help_mode(&app, input);
-            break;
-        case EEM_Running:
-            run_mode(&app, input);
-            break;
-        case EEM_Editing:
-            editor_mode(&app, input);
-            break;
-        case EEM_Command:
-            command_mode(&app, input);
-            break;
+
+            KeyboardEvent event;
+            while (!read_file(app.kdb, &event, sizeof(KeyboardEvent)))
+                ;
+            enum Keycode code = scancode_to_keycode(event.scancode);
+            if (code == KC_LEFT_SHIFT || code == KC_RIGHT_SHIFT)
+            {
+                app.shift_state = event.type == KEY_PRESSED;
+            }
+            if (event.type == KEY_RELEASED)
+            {
+                continue;
+            }
+            Input input;
+            input.keycode = code;
+            input.shift_pressed = app.shift_state;
+            switch (app.current_mode)
+            {
+            case EEM_ViewingHelp:
+                help_mode(&app, input);
+                break;
+            case EEM_RunningFinished:
+                if (input.keycode == KC_TAB)
+                {
+                    app.current_mode = EEM_Editing;
+                }
+                break;
+            case EEM_RunningWaitingForInput:
+                run_mode(&app, true, input);
+                break;
+            case EEM_Editing:
+                editor_mode(&app, input);
+                break;
+            case EEM_Command:
+                command_mode(&app, input);
+                break;
+            }
         }
     }
     return 0;
