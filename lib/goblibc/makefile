@@ -1,8 +1,8 @@
 .PHONY: all
 
 INCLUDE_DIR := lib/goblibc/include
-CC := clang
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector  -I $(INCLUDE_DIR)
+CC := x86_64-elf-gcc
+CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -I $(INCLUDE_DIR)
 BUILD_DIR := build/lib/goblibc
 SOURCE_DIR := lib/goblibc/src
 
@@ -28,7 +28,7 @@ TARGETS := $(BUILD_DIR)/string.c.o\
 			$(BUILD_DIR)/file_scan_helpers.c.o\
 			$(BUILD_DIR)/app.c.o
 
-ARCHIVER := ar
+ARCHIVER := x86_64-elf-gcc-ar
 ARCHIVER_FLAGS := rcs
 
 all: $(TARGETS)

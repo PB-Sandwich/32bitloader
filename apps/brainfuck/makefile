@@ -7,9 +7,9 @@ LIBC_INCLUDE_DIR := lib/goblibc/include
 ESTROS_PATH := ./lib/estros/include/
 
 
-CC := gcc
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(LIBC_INCLUDE_DIR) -I $(ESTROS_PATH)
-LD := ld
+CC := x86_64-elf-gcc
+CFLAGS := -m32 -nostdlib -ffreestanding -Wall -Wextra -g -fmerge-constants -I $(LIBC_INCLUDE_DIR) -I $(ESTROS_PATH)
+LD := x86_64-elf-gcc
 LDFLAGS := -m elf_i386 -nostdlib -T apps/$(PROJECT_NAME)/linker.ld
 
 all:
