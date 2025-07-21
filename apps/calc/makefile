@@ -8,7 +8,7 @@ ESTROS_PATH := ./lib/estros/include/
 
 CC := x86_64-elf-gcc
 CFLAGS := -m32 -nostdlib -ffreestanding -Wall -Wextra -g -fmerge-constants -I $(LIBC_INCLUDE_DIR) -I $(ESTROS_PATH)
-LD := x86_64-elf-gcc
+LD := x86_64-elf-ld
 LDFLAGS := -m elf_i386 -nostdlib -T apps/$(PROJECT_NAME)/linker.ld
 
 all:

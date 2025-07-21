@@ -781,7 +781,7 @@ int gob_format_core(FILE *file, const char *fmt, va_list *args, union arg *nl_ar
 
     for (i = 1; i <= NL_ARGMAX && nl_type[i]; i++)
     {
-        pop_arg(&nl_arg[i], nl_type[i], &args);
+        pop_arg(&nl_arg[i], nl_type[i], args);
     }
     for (; i <= NL_ARGMAX && !nl_type[i]; i++)
         ;

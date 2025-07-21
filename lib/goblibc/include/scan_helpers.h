@@ -11,7 +11,6 @@
 #pragma once
 #include <file.h>
 #include <stdint.h>
-#include <bits/alltypes.h>
 
 /// @brief Scan an integer value
 /// @param file Source from which to read the value
