@@ -12,7 +12,9 @@
 #include <keyboard/input.h>
 #include <keyboard/keyboard.h>
 #include <memutils.h>
+#include <pager.h>
 #include <pic.h>
+#include <pit.h>
 #include <print.h>
 #include <stdint.h>
 #include <terminal/tty.h>
@@ -129,20 +131,28 @@ __attribute__((section(".text.start"))) void kernel_entry(struct GDT* gdt)
     outb(PIC2_DATA, ICW4_8086);
     io_wait();
 
-    // mask everything but the keyboard irq (1) and spurious irq (7, 15)
+    // mask everything but timer irq (0) the keyboard irq (1) and spurious irq (7, 15)
     // because thats all we care about for now
-    outb(PIC1_DATA, 0b01111101);
+    outb(PIC1_DATA, 0b01111100);
     outb(PIC2_DATA, 0b01111111);
 
+    idt_entries[32] = make_idt_entry((uint32_t*)irq0_timer, 0x8, 0xE);
     idt_entries[33] = make_idt_entry((uint32_t*)irq1_keyboard, 0x8, 0xE);
     idt_entries[39] = make_idt_entry((uint32_t*)irq7_15_spurious, 0x8, 0xE);
     idt_entries[47] = make_idt_entry((uint32_t*)irq7_15_spurious, 0x8, 0xE);
 
-    __asm__ volatile("sti"); // reenable maskable interrupts
-
     idt_entries[0x40] = make_idt_entry((uint32_t*)syscall, 0x8, 0xE);
 
-    // set stack
+    // enable the pit timer for 10ms
+    uint16_t divisor = TIMER_DIVISOR;
+    // Send the command byte
+    outb(0x43, 0x36); // Channel 0, LSB then MSB, mode 3 (square wave)
+    // Send divisor low byte first
+    outb(0x40, (uint8_t)(divisor & 0xFF));
+    outb(0x40, (uint8_t)((divisor >> 8) & 0xFF));
+
+    __asm__ volatile("sti"); // reenable maskable interrupts
+
     __asm__ volatile(
         "mov %0, %%esp\n\t"
         :
@@ -156,7 +166,7 @@ __attribute__((section(".text.start"))) void kernel_entry(struct GDT* gdt)
 
 void main()
 {
-    init_heap((uint8_t*)0x210000, 0x10000);
+    init_heap((uint8_t*)0x210000, 0x90000);
 
     vfs_init();
 
@@ -186,19 +196,39 @@ void main()
     }
     vfs_close_file(log_file);
 
-    set_print_output("/sys/kernel.log");
+    // set_print_output("/sys/kernel.log");
 
     vfs_create_device_file("/dev/kdb", get_keyboard_file_operations(), VFS_BLOCK_DEVICE);
 
     set_input_kdb_dev("/dev/kdb");
 
-    VFSFile* file = vfs_open_file("/apps/brainfuck.bin", VFS_READ);
+    init_pager();
+
+    PDETable* kernel_table = (PDETable*)create_new_table();
+
+    while (new_page(PAGER_ERROR, kernel_table, PAGE_GLOBAL) < (void*)0x400000 - PAGE_SIZE)
+        ;
+
+    load_page_table(kernel_table);
+
+    PDETable* test = (PDETable*)soft_copy_table((PageTable*)kernel_table, 1);
+    new_page(PAGER_ERROR, test, 0);
+    new_page(PAGER_ERROR, kernel_table, 0);
+
+    load_page_table(test);
+    //load_page_table(kernel_table);
+
+    while (new_page(PAGER_ERROR, test, PAGE_GLOBAL) < (void*)0x1000000 - PAGE_SIZE)
+        ;
+
+    VFSFile* file = vfs_open_file("/apps/new_test.bin", VFS_READ);
+
     if (file == NULL) {
         printf("Unable to open file\n");
         return;
     }
 
-    uint8_t* buf = (uint8_t*)(0x300000);
+    uint8_t* buf = (uint8_t*)(0x400000);
     vfs_seek(file, 4, VFS_BEG);
     while (vfs_read(file, buf, 1024)) {
         buf += 1024;

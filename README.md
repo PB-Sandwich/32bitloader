@@ -4,7 +4,7 @@ Loads a x86 32 bit app into memory address 0x300000 (3Mb) and provides some basi
 
 ## Making an App
 
-The app should be put into the ./build/root directory as a statically linked elf file for 0x300000.
+The app should be put into the ./build/root directory as a linked elf file for 0x400000.
 
 ## Syscalls
 

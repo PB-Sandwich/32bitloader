@@ -30,5 +30,8 @@ int main()
 
     write_file(file, buffer, strlen(buffer));
 
+    uint32_t cmd = 0;
+    ioctl(ad.stdout, &cmd, &cmd);
+
     return 0;
 }

@@ -337,10 +337,10 @@ void harddrive_write_blocks(void* buffer, uint32_t blocks[13], uint32_t pos, uin
 
         vfs_seek(harddrive, real_block * BLOCK_SIZE, VFS_BEG);
         vfs_write(harddrive, (uint8_t*)buffer + (i * BLOCK_SIZE), BLOCK_SIZE);
-
-        struct DirectoryEntry* dentry = (void*)((uint8_t*)buffer + (i * BLOCK_SIZE));
     }
 }
+
+#define BUFFER_SIZE_BLOCKS 5
 
 VFSFile* fs_open(VFSIndexNode* inode)
 {
@@ -359,7 +359,7 @@ VFSFile* fs_open(VFSIndexNode* inode)
     struct FileData* fd = file->private_data;
     fd->range_low = 0;
     fd->range_high = 0;
-    fd->data = malloc(BLOCK_SIZE);
+    fd->data = malloc(BLOCK_SIZE * BUFFER_SIZE_BLOCKS);
     if (fd->data == NULL) {
         free(file->private_data);
         free(file);
@@ -375,8 +375,6 @@ void fs_close(VFSFile* file)
     }
     free(file);
 }
-
-#define BUFFER_SIZE_BLOCKS 5
 
 uint32_t fs_read(VFSFile* file, void* buffer, uint32_t buffer_size)
 {
