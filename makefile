@@ -20,6 +20,7 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/heap.c.o \
 		$(BUILD_DIR)/kernel/exit.c.o \
 		$(BUILD_DIR)/kernel/pager.c.o \
+		$(BUILD_DIR)/kernel/trace.c.o \
 		$(BUILD_DIR)/kernel/terminal/tty.c.o \
 		$(BUILD_DIR)/kernel/harddrive/ata.c.o \
 		$(BUILD_DIR)/kernel/harddrive/hdd.c.o \

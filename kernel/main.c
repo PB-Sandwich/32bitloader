@@ -1,3 +1,4 @@
+#include "trace.h"
 #include <exit.h>
 #include <filesystem/estros-fs.h>
 #include <filesystem/virtual-filesystem.h>
@@ -212,8 +213,8 @@ void main()
     load_page_table(kernel_table);
 
     PDETable* test = (PDETable*)soft_copy_table((PageTable*)kernel_table, 1);
-    new_page(PAGER_ERROR, test, 0);
-    new_page(PAGER_ERROR, kernel_table, 0);
+    // new_page(PAGER_ERROR, test, 0);
+    // new_page(PAGER_ERROR, kernel_table, 0);
 
     load_page_table(test);
     //load_page_table(kernel_table);
