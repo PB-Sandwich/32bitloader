@@ -13,7 +13,7 @@
 // 	outb(PIC1_COMMAND,PIC_EOI);
 // }
 
-uint64_t ticks = 0;
+volatile uint64_t ticks = 0;
 
 void irq0_timer(struct interrupt_frame* frame)
 {

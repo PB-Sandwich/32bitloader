@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-enum Keycode : uint8_t {
+enum Keycode {
     KC_NONE = 0,
     KC_ESC, // 0x01
     KC_KEY_1, // 0x02

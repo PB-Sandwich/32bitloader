@@ -37,9 +37,9 @@ TARGETS_BIN := $(BUILD_DIR)/kernel/boot.bin
 TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
 
 
-CC := gcc
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(KERNEL_SOURCE_DIR)
-LD := ld
+CC := x86_64-elf-gcc 
+CFLAGS := -m32 -nostdlib -ffreestanding -Wall -Wextra -g -fmerge-constants -I $(KERNEL_SOURCE_DIR)
+LD := x86_64-elf-ld
 LDFLAGS := -m elf_i386 -nostdlib -T linker.ld 
 
 

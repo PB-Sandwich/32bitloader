@@ -4,7 +4,7 @@
 #include <filesystem/virtual-filesystem.h>
 #include <stdint.h>
 
-typedef enum : uint8_t {
+typedef enum {
     KEY_PRESSED = 1,
     KEY_RELEASED = 2,
 } KeyboardEventType;

@@ -4,7 +4,6 @@
 #include <heap.h>
 #include <memutils.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 enum BitMap {
     FREE = 0,

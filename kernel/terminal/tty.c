@@ -4,8 +4,7 @@
 #include <keyboard/input.h>
 #include <print.h>
 #include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include <memutils.h>
 
 void print_char(uint8_t chr);
 void print_string(uint8_t* str);

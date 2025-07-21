@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-typedef enum : uint8_t{
+typedef enum {
     VFS_BEG = 1,
     VFS_CUR = 2,
     VFS_END = 3,
@@ -17,7 +17,7 @@ typedef enum {
     VFS_CHARACTER_DEVICE = 3,
 } VFSFileType;
 
-typedef enum : uint8_t {
+typedef enum {
     VFS_READ = 0b1,
     VFS_WRITE = 0b01,
     VFS_APPEND = 0b001,

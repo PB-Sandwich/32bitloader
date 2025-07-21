@@ -1,9 +1,9 @@
 #include "hdd.h"
 #include "ata.h"
 #include "filesystem/virtual-filesystem.h"
+#include <heap.h>
 #include <print.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 VFSFile* hdd_open(VFSIndexNode* inode, VFSFileFlags flags)
 {
