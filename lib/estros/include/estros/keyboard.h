@@ -245,8 +245,8 @@ enum Keycode scancode_to_keycode(uint8_t sc)
 
 enum Keycode wait_for_keypress(File* kdb_file)
 {
-    KeyboardEvent event;
-    while (!read_file(kdb_file, &event, sizeof(KeyboardEvent)))
+    KeyboardEvent event = { 0 };
+    while (!read_file(kdb_file, &event, sizeof(KeyboardEvent)) || event.type != KEY_PRESSED)
         ;
     ;
     return scancode_to_keycode(event.scancode);

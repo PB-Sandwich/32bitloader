@@ -1,9 +1,9 @@
 #include "irq_handlers.h"
 #include <inboutb.h>
+#include <keyboard/keyboard.h>
 #include <pic.h>
 #include <print.h>
 #include <stdint.h>
-#include <keyboard/keyboard.h>
 
 // void PIC_sendEOI(uint8_t irq)
 // {
@@ -12,6 +12,16 @@
 //
 // 	outb(PIC1_COMMAND,PIC_EOI);
 // }
+
+uint64_t ticks = 0;
+
+void irq0_timer(struct interrupt_frame* frame)
+{
+    ticks++;
+
+    outb(PIC1_CMD, PIC_EOI);
+    return;
+}
 
 void irq1_keyboard(struct interrupt_frame* frame)
 {

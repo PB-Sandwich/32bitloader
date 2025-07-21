@@ -81,10 +81,59 @@ void* malloc(uint32_t size)
             split(current, size);
             current->free = 0;
             return (void*)(current + 1);
-        } else {
+        }
+        current->free = 0;
+        return (void*)(current + 1);
+    }
+
+    return NULL;
+}
+
+void* malloc_aligned(uint32_t size, uint32_t alignment)
+{
+    BlockHeader* current = first_entry;
+
+    if (size == 0) {
+        return NULL;
+    }
+
+    while (current != NULL) {
+        if (current->free == 0) {
+            current = current->next;
+            continue;
+        }
+        if (current->size < size) {
+            current = current->next;
+            continue;
+        }
+
+        uint32_t block_start = (uint32_t)(current + 1);
+        uint32_t aligned_start = (block_start + alignment - 1) & ~(alignment - 1);
+        uint32_t padding = aligned_start - block_start;
+
+        if (current->size < size + padding) {
+            current = current->next;
+            continue;
+        }
+
+        if (padding < sizeof(BlockHeader)) {
+            current = current->next;
+            continue;
+        }
+
+        if (padding > sizeof(BlockHeader)) {
+            split(current, padding - sizeof(BlockHeader));
+            current = current->next;
+        }
+
+        if (current->size > (size + sizeof(BlockHeader)) * 2) {
+            split(current, size);
             current->free = 0;
             return (void*)(current + 1);
         }
+
+        current->free = 0;
+        return (void*)(current + 1);
     }
 
     return NULL;

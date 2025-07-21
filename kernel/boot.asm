@@ -39,7 +39,7 @@ failed_to_read_disk:
 DAP:
     db 0x10          ; size of packet
     db 0             ; reserved
-    dw 80            ; number of sectors to read
+    dw 100           ; number of sectors to read
     dw TEMP_KERNEL_LOCATION
     dw 0             ; segment (we’re in real mode still)
     dq 1             ; starting LBA (starts at 0, so LBA=1 = second sector)
@@ -91,9 +91,56 @@ start_protected_mode:
     mov gs, ax
     mov ebp, 0x90000
     mov esp, ebp
+    jmp enable_paging
 
+enable_paging:
+    mov eax, cr0
+    and eax, 0b01111111111111111111111111111111
+    mov cr0, eax ; disable paging
+
+    ; mov eax, cr4 ; setting Page Address Extensions
+    ; or eax, 0b00000000000000000000000000100000
+    ; mov cr4, eax
+
+PDE_addr equ 0x400000
+PTE_addr equ 0x401000
+PDE_flags equ 0b000000001011
+PTE_flags equ 0b000000001011
+
+    mov eax, PDE_addr
+    mov dword [eax], PTE_addr | PDE_flags
+
+    mov eax, PTE_addr
+
+    mov ecx, eax
+    mov ebx, 0x0000
+.loop_start:
+    cmp ecx, PTE_addr + 0xA000
+    jge .loop_end
+    mov [ecx], ebx
+    or [ecx], dword PTE_flags
+    add ecx, 4
+    add ebx, 0x1000
+    jmp .loop_start
+.loop_end:
+
+    mov eax, PDE_addr
+    or eax, 0b0001000
+    mov cr3, eax
+
+    mov eax, cr0
+    or eax, 0b10000000000000000000000000000000
+    mov cr0, eax ; enable paging
+
+    mov eax, cr4
+    or eax, 1 << 7 ; enable global pages
+    mov cr4, eax
+
+    jmp start_kernel
+
+start_kernel:
     cld
-    mov ecx, 80 * 512 ; 30 cd sectors
+    mov ecx, 100 * 512
     mov esi, TEMP_KERNEL_LOCATION
     mov edi, 0x100000
     rep movsb
@@ -102,6 +149,7 @@ start_protected_mode:
     call 0x100000
 
     hlt
+
 
 times 440-($-$$) db 0
 dd 0 ; unique disk id

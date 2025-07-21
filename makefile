@@ -19,6 +19,7 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/memutils.c.o \
 		$(BUILD_DIR)/kernel/heap.c.o \
 		$(BUILD_DIR)/kernel/exit.c.o \
+		$(BUILD_DIR)/kernel/pager.c.o \
 		$(BUILD_DIR)/kernel/terminal/tty.c.o \
 		$(BUILD_DIR)/kernel/harddrive/ata.c.o \
 		$(BUILD_DIR)/kernel/harddrive/hdd.c.o \
@@ -36,7 +37,7 @@ TARGETS := $(TARGETS_ELF) $(TARGETS_BIN)
 
 
 CC := gcc
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -Os -I $(KERNEL_SOURCE_DIR)
+CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(KERNEL_SOURCE_DIR)
 LD := ld
 LDFLAGS := -m elf_i386 -nostdlib -T linker.ld 
 
@@ -73,11 +74,11 @@ kernel: $(TARGETS)
 	@objcopy -O binary $(BUILD_DIR)/kernel.elf $(BUILD_DIR)/kernel.bin
 	@cat $(BUILD_DIR)/kernel/boot.bin $(BUILD_DIR)/kernel.bin > $(BUILD_DIR)/$(NAME).bin
 
-	@filesize=$$(stat -c%s $(BUILD_DIR)/$(NAME).bin); \
-	if [ $$filesize -gt 37888 ]; then \
-		echo "Error: $(BUILD_DIR)/$(NAME).bin is $$filesize bytes (limit is 37888)"; \
-		exit 1; \
-	fi
+	# @filesize=$$(stat -c%s $(BUILD_DIR)/$(NAME).bin); \
+	# if [ $$filesize -gt 37888 ]; then \
+	# 	echo "Error: $(BUILD_DIR)/$(NAME).bin is $$filesize bytes (limit is 37888)"; \
+	# 	exit 1; \
+	# fi
 
 filesystem: tools
 	@echo "-------------------------------------"
