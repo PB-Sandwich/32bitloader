@@ -4,19 +4,22 @@
 #include <estros/file.h>
 #include <stdint.h>
 
-typedef enum : uint8_t {
+typedef enum
+{
     KEY_PRESSED = 1,
     KEY_RELEASED = 2,
 } KeyboardEventType;
 
-typedef struct {
+typedef struct
+{
     uint16_t scancode;
     uint8_t type;
 } __attribute__((packed)) KeyboardEvent;
 
-enum Keycode : uint8_t {
+enum Keycode
+{
     KC_NONE = 0,
-    KC_ESC, // 0x01
+    KC_ESC,   // 0x01
     KC_KEY_1, // 0x02
     KC_KEY_2,
     KC_KEY_3,
@@ -30,8 +33,8 @@ enum Keycode : uint8_t {
     KC_MINUS, // 0x0C
     KC_EQUAL,
     KC_BACKSPACE, // 0x0E
-    KC_TAB, // 0x0F
-    KC_Q, // 0x10
+    KC_TAB,       // 0x0F
+    KC_Q,         // 0x10
     KC_W,
     KC_E,
     KC_R,
@@ -40,12 +43,12 @@ enum Keycode : uint8_t {
     KC_U,
     KC_I,
     KC_O,
-    KC_P, // 0x19
+    KC_P,            // 0x19
     KC_LEFT_BRACKET, // 0x1A
     KC_RIGHT_BRACKET,
-    KC_ENTER, // 0x1C
+    KC_ENTER,     // 0x1C
     KC_LEFT_CTRL, // 0x1D
-    KC_A, // 0x1E
+    KC_A,         // 0x1E
     KC_S,
     KC_D,
     KC_F,
@@ -56,9 +59,9 @@ enum Keycode : uint8_t {
     KC_L,
     KC_SEMICOLON, // 0x27
     KC_APOSTROPHE,
-    KC_GRAVE, // 0x29 `~
+    KC_GRAVE,      // 0x29 `~
     KC_LEFT_SHIFT, // 0x2A
-    KC_BACKSLASH, // 0x2B
+    KC_BACKSLASH,  // 0x2B
     KC_Z,
     KC_X,
     KC_C,
@@ -72,7 +75,7 @@ enum Keycode : uint8_t {
     KC_RIGHT_SHIFT,
     KC_KP_ASTERISK, // Numpad *
     KC_LEFT_ALT,
-    KC_SPACE, // 0x39
+    KC_SPACE,    // 0x39
     KC_CAPSLOCK, // 0x3A
 
     // You can continue with F1–F12 and navigation keys:
@@ -122,6 +125,7 @@ enum Keycode : uint8_t {
     KC_LEFT_GUI,
     KC_RIGHT_GUI,
 };
+
 
 uint8_t ascii_table[256] = {
     [0x02] = '1',
@@ -231,7 +235,8 @@ uint8_t shifted_ascii_table[256] = {
 
 uint8_t keycode_to_ascii(enum Keycode kc, uint8_t is_shifted)
 {
-    if (is_shifted) {
+    if (is_shifted)
+    {
         return shifted_ascii_table[kc];
     }
     return ascii_table[kc];
@@ -243,7 +248,7 @@ enum Keycode scancode_to_keycode(uint8_t sc)
     return (enum Keycode)sc;
 }
 
-enum Keycode wait_for_keypress(File* kdb_file)
+enum Keycode wait_for_keypress(File *kdb_file)
 {
     KeyboardEvent event = { 0 };
     while (!read_file(kdb_file, &event, sizeof(KeyboardEvent)) || event.type != KEY_PRESSED)

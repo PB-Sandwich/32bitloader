@@ -13,14 +13,15 @@ int main()
     EstrosAppData ad = get_app_data();
     write_file(ad.stdout, msg, strlen(msg));
 
-    File* file = open_file("/testfile", ESTROS_READ | ESTROS_WRITE);
-    if (file == 0) {
-        write_file(ad.stdout, err_msg, strlen(err_msg));
+    File *file = open_file("/testfile", ESTROS_READ | ESTROS_WRITE);
+    if (file == 0)
+    {
+        write_file(ad.stdout, err_msg, sizeof(err_msg));
         return 0;
     }
 
-    File* kdb = open_file("/dev/kdb", ESTROS_READ);
-    write_file(ad.stdout, "Press any key to continue\n", strlen("Press any key to continuen\n"));
+    File *kdb = open_file("/dev/kdb", ESTROS_READ);
+    write_file(ad.stdout, "Press any key to continue\n", strlen("Press any key to continue\n"));
     wait_for_keypress(kdb);
     write_file(ad.stdout, "what would you like to put in the file\n", strlen("what would you like to put in the file\n"));
 

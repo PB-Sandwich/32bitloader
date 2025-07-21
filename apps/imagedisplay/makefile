@@ -1,14 +1,14 @@
-PROJECT_NAME := brainfuck
+PROJECT_NAME := imagedisplay
 .PHONY: all
 
 LIBC_PATH := ./build/lib/goblibc
 LIBC_NAME := goblibc
 LIBC_INCLUDE_DIR := lib/goblibc/include
-ESTROS_PATH := ./lib/estros/include/
-
+ESTROS_INCLUDE_DIR := -I ./lib/estros/include/
+ESTROS_PATH := -I ./lib/estros/include/
 
 CC := gcc
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(LIBC_INCLUDE_DIR) -I $(ESTROS_PATH)
+CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(LIBC_INCLUDE_DIR) -I ./lib/estros/include/
 LD := ld
 LDFLAGS := -m elf_i386 -nostdlib -T apps/$(PROJECT_NAME)/linker.ld
 

@@ -223,6 +223,7 @@ void main()
         ;
 
     VFSFile* file = vfs_open_file("/apps/new_test.bin", VFS_READ);
+
     if (file == NULL) {
         printf("Unable to open file\n");
         return;
