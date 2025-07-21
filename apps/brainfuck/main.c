@@ -70,6 +70,7 @@ void init_exec_data(CodeExecutionData *exec, char *code, int code_len)
     exec->code_len = code_len;
     exec->code = code;
     exec->current_code_offset = 0;
+    exec->mem_pos = 0;
 }
 
 typedef struct
@@ -224,6 +225,8 @@ void display_help()
         * '<' - move cell pointer left\n\
         * '[' - if current cell is 0, move to matching ']'\n\
         * ']' - if current cell is NOT 0, move to matching '['\n\
+        * ',' - accept one byte of input\n\
+        * ']' - print value of current memory cell as ASII\n\
         There are 300 cells each storing value in range of 0 to 255 \n\
         Press ESC - to exit help\n\
         ";
@@ -379,6 +382,10 @@ void command_mode(AppState *app, Input input)
 
 void run_mode(AppState *app, bool has_input, Input input)
 {
+    if (app->current_mode != EEM_Running)
+    {
+        return;
+    }
     if (has_input && input.keycode == KC_ESC)
     {
         write_text_to_status_bar("Execution interrupted! TAB to edit code", ((EC_Yellow) << 4 | EC_Black), app->command_text_buffer);
@@ -487,6 +494,7 @@ int main()
                 if (input.keycode == KC_TAB)
                 {
                     app.current_mode = EEM_Editing;
+                    reset_display(app.code_buffer);
                 }
                 break;
             case EEM_RunningWaitingForInput:
