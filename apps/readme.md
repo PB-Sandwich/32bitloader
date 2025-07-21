@@ -27,65 +27,65 @@ To debug an app using `gdb` launch gdb with app elf file as argument, located in
 ## Examples and templates
 ### Assembly
 
-    ```makefile
-    PROJECT_NAME := your_app_name
-    MAIN_FILE := your_app_name.asm
-    # apps must start at this location
-    APP_START := 0x300000
+```makefile
+PROJECT_NAME := your_app_name
+MAIN_FILE := your_app_name.asm
+# apps must start at this location
+APP_START := 0x300000
 
-    .PHONY: all
-    all:
-        # create folder for the build files
-        mkdir -p build/apps/$(PROJECT_NAME)
-        # assemble the file
-        nasm -f elf apps/$(PROJECT_NAME)/$(MAIN_FILE) -o build/apps/$(PROJECT_NAME).o
+.PHONY: all
+all:
+    # create folder for the build files
+    mkdir -p build/apps/$(PROJECT_NAME)
+    # assemble the file
+    nasm -f elf apps/$(PROJECT_NAME)/$(MAIN_FILE) -o build/apps/$(PROJECT_NAME).o
 
-        ld -m elf_i386 -nostdlib -Ttext=$(APP_START) -o build/apps/$(PROJECT_NAME).elf build/apps/$(PROJECT_NAME).o
+    ld -m elf_i386 -nostdlib -Ttext=$(APP_START) -o build/apps/$(PROJECT_NAME).elf build/apps/$(PROJECT_NAME).o
 
-    ```
+```
 ## C
 An example of a simple c program makefile that links to goblibc. This assumes that you are only using one file and it's called `main.c`
 
-    ```makefile
+```makefile
 
-   PROJECT_NAME := yourappnamehere
-    .PHONY: all
+PROJECT_NAME := yourappnamehere
+.PHONY: all
 
-    LIBC_PATH := ./build/lib/goblibc
-    LIBC_NAME := goblibc
-    LIBC_INCLUDE_DIR := lib/goblibc/include
+LIBC_PATH := ./build/lib/goblibc
+LIBC_NAME := goblibc
+LIBC_INCLUDE_DIR := lib/goblibc/include
 
-    CC := x86_64-elf-gcc
-    CFLAGS := -m32 -nostdlib -ffreestanding -Wall -Wextra -g -fmerge-constants -I $(LIBC_INCLUDE_DIR)
-    LD := x86_64-elf-ld
-    LDFLAGS := -m elf_i386 -nostdlib -T apps/$(PROJECT_NAME)/linker.ld
+CC := x86_64-elf-gcc
+CFLAGS := -m32 -nostdlib -ffreestanding -Wall -Wextra -g -fmerge-constants -I $(LIBC_INCLUDE_DIR)
+LD := x86_64-elf-ld
+LDFLAGS := -m elf_i386 -nostdlib -T apps/$(PROJECT_NAME)/linker.ld
 
-    all:
-        mkdir -p build/apps/$(PROJECT_NAME)
-        $(CC) $(CFLAGS) -c -o build/apps/$(PROJECT_NAME)/$(PROJECT_NAME).o apps/$(PROJECT_NAME)/main.c
+all:
+    mkdir -p build/apps/$(PROJECT_NAME)
+    $(CC) $(CFLAGS) -c -o build/apps/$(PROJECT_NAME)/$(PROJECT_NAME).o apps/$(PROJECT_NAME)/main.c
 
-        $(LD) $(LDFLAGS) -o build/apps/$(PROJECT_NAME).elf build/apps/$(PROJECT_NAME)/$(PROJECT_NAME).o -L$(LIBC_PATH) -l$(LIBC_NAME)
-    ```
+    $(LD) $(LDFLAGS) -o build/apps/$(PROJECT_NAME).elf build/apps/$(PROJECT_NAME)/$(PROJECT_NAME).o -L$(LIBC_PATH) -l$(LIBC_NAME)
+```
 
-    An example linker file that will be required for the build process
-    ```ld
-    ENTRY(app_main)
+An example linker file that will be required for the build process
+```ld
+ENTRY(app_main)
 
-    SECTIONS {
-        . = 0x300000;
+SECTIONS {
+    . = 0x300000;
 
-        .text.start ALIGN(4K) : {
-            *(.text.start)
-            *(.text*)
-        }
-
-        .rodata ALIGN(4K) : { *(.rodata*) }
-        .data ALIGN(4K) : { *(.data*) }
-        .bss ALIGN(4K) : { *(.bss*) }
+    .text.start ALIGN(4K) : {
+        *(.text.start)
+        *(.text*)
     }
-    ```
 
-    An entry function for a c program should look like this
-    ```c
-        int main(){/*your code here*/}
-    ```
+    .rodata ALIGN(4K) : { *(.rodata*) }
+    .data ALIGN(4K) : { *(.data*) }
+    .bss ALIGN(4K) : { *(.bss*) }
+}
+```
+
+An entry function for a c program should look like this
+```c
+    int main(){/*your code here*/}
+```
