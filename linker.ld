@@ -1,5 +1,3 @@
-#ENTRY(main)
-
 SECTIONS {
     . = 0x100000;
 

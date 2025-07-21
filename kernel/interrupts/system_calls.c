@@ -1,12 +1,10 @@
 #include "system_calls.h"
 #include "filesystem/virtual-filesystem.h"
-#include "irq_handlers.h"
 #include <harddrive/ata.h>
 #include <heap.h>
 #include <keyboard/input.h>
 #include <print.h>
 #include <stdint.h>
-#include <string.h>
 #include <terminal/tty.h>
 
 struct syscall_regs {
@@ -50,7 +48,7 @@ void syscall_c(struct syscall_regs* regs)
     case 0x09:
         regs->eax = vfs_create_regular_file((char*)regs->ebx);
         break;
-    default:
-        break;
     }
+    //__asm__ volatile("nop\n\t"); // needed for gcc as it made the wrong jump address
+    return;
 }

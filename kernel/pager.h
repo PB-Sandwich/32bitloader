@@ -46,7 +46,7 @@ typedef union {
     PDETable pde;
 } PageTable;
 
-enum : uint32_t {
+enum {
     PAGE_PRESENT = 1,
     PAGE_WRITEABLE = 1 << 1,
     PAGE_USERSPACE = 1 << 2,

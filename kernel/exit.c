@@ -1,7 +1,10 @@
+#include <trace.h>
 #include <exit.h>
 #include <filesystem/virtual-filesystem.h>
 #include <memutils.h>
 #include <print.h>
+#include <stdint.h>
+#include <time.h>
 
 void emergency_print(char* str)
 {
@@ -32,7 +35,24 @@ void exit_kernel()
     while ((length = vfs_read(log, buffer, 1024)) > 0) {
         vfs_write(tty, buffer, length);
     }
-    vfs_write(tty, "\ntail of /sys/kernel.log\nexited kernel", strlen("\ntail of /sys/kernel.log\nexited kernel"));
+    vfs_write(tty, "\ntail of /sys/kernel.log\nexited kernel\n", strlen("\ntail of /sys/kernel.log\nexited kernel\n"));
+    vfs_write(tty, "running stack trace in\n", strlen("running stack trace in\n"));
+
+    uint64_t start_time = ticks;
+    int i = 5;
+    while (1) {
+        if (i == 0) {
+            break;
+        }
+        uint64_t current_time = ticks;
+        if (current_time > start_time + 100) {
+            start_time = ticks;
+            printf("%d...", i);
+            i--;
+        }
+    }
+    printf("\n");
+    run_stack_trace();
 
     while (1)
         ;
