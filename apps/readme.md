@@ -53,9 +53,9 @@ This folder contains code for "system" apps aka apps that will be included the f
     LIBC_NAME := goblibc
     LIBC_INCLUDE_DIR := lib/goblibc/include
 
-    CC := gcc
-    CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -I $(LIBC_INCLUDE_DIR)
-    LD := ld
+    CC := x86_64-elf-gcc
+    CFLAGS := -m32 -nostdlib -ffreestanding -Wall -Wextra -g -fmerge-constants -I $(LIBC_INCLUDE_DIR)
+    LD := x86_64-elf-ld
     LDFLAGS := -m elf_i386 -nostdlib -T apps/$(PROJECT_NAME)/linker.ld
 
     all:
