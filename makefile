@@ -21,6 +21,7 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/exit.c.o \
 		$(BUILD_DIR)/kernel/pager.c.o \
 		$(BUILD_DIR)/kernel/trace.c.o \
+		$(BUILD_DIR)/kernel/process.c.o \
 		$(BUILD_DIR)/kernel/terminal/tty.c.o \
 		$(BUILD_DIR)/kernel/harddrive/ata.c.o \
 		$(BUILD_DIR)/kernel/harddrive/hdd.c.o \
@@ -30,6 +31,7 @@ TARGETS_ELF :=  $(BUILD_DIR)/kernel/main.c.o \
 		$(BUILD_DIR)/kernel/filesystem/estros-fs.c.o \
 		$(BUILD_DIR)/kernel/interrupts/error_handlers.int.c.o \
 		$(BUILD_DIR)/kernel/interrupts/irq_handlers.int.c.o \
+		$(BUILD_DIR)/kernel/interrupts/irq_handlers.asm.o \
 		$(BUILD_DIR)/kernel/interrupts/system_calls.int.c.o \
 		$(BUILD_DIR)/kernel/interrupts/system_calls.asm.o
 

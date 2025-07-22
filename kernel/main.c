@@ -1,4 +1,3 @@
-#include "trace.h"
 #include <exit.h>
 #include <filesystem/estros-fs.h>
 #include <filesystem/virtual-filesystem.h>
@@ -17,8 +16,10 @@
 #include <pic.h>
 #include <pit.h>
 #include <print.h>
+#include <process.h>
 #include <stdint.h>
 #include <terminal/tty.h>
+#include <time.h>
 #include <tss.h>
 
 struct GDT {
@@ -152,8 +153,6 @@ __attribute__((section(".text.start"))) void kernel_entry(struct GDT* gdt)
     outb(0x40, (uint8_t)(divisor & 0xFF));
     outb(0x40, (uint8_t)((divisor >> 8) & 0xFF));
 
-    __asm__ volatile("sti"); // reenable maskable interrupts
-
     __asm__ volatile(
         "mov %0, %%esp\n\t"
         :
@@ -163,6 +162,29 @@ __attribute__((section(".text.start"))) void kernel_entry(struct GDT* gdt)
     main();
 
     exit_kernel();
+}
+
+PageTable* kernel_table;
+
+void inc_time()
+{
+    while (1) {
+        if (time.millisecond > 1000) {
+            time.seconds += 1;
+            time.millisecond -= 1000;
+        }
+    }
+}
+
+void print_time()
+{
+    uint32_t start_time = time.seconds;
+    while (1) {
+        if (start_time < time.seconds) {
+            printf("uptime is %ds\n", time.seconds);
+            start_time = time.seconds;
+        }
+    }
 }
 
 void main()
@@ -205,44 +227,54 @@ void main()
 
     init_pager();
 
-    PDETable* kernel_table = (PDETable*)create_new_table();
+    kernel_table = create_new_table();
 
-    while (new_page(PAGER_ERROR, kernel_table, PAGE_GLOBAL) < (void*)0x400000 - PAGE_SIZE)
+    while (new_page(PAGER_ERROR, &kernel_table->pde, PAGE_GLOBAL) < (void*)0x400000 - PAGE_SIZE)
         ;
 
-    load_page_table(kernel_table);
+    load_page_table(&kernel_table->pde);
 
-    PDETable* test = (PDETable*)soft_copy_table((PageTable*)kernel_table, 1);
-    // new_page(PAGER_ERROR, test, 0);
-    // new_page(PAGER_ERROR, kernel_table, 0);
+    // testing
 
-    load_page_table(test);
-    // load_page_table(kernel_table);
+    uint32_t stack0 = (uint32_t)new_page(PAGER_ERROR, &kernel_table->pde, 0);
+    uint32_t stack1 = (uint32_t)new_page(PAGER_ERROR, &kernel_table->pde, 0);
+    uint32_t stack2 = (uint32_t)new_page(PAGER_ERROR, &kernel_table->pde, 0);
 
-    while (new_page(PAGER_ERROR, test, PAGE_GLOBAL) < (void*)0x1000000 - PAGE_SIZE)
-        ;
+    struct process* p0 = create_process("Dummy", PROCESS_RUNNING, (uint32_t)NULL, stack0 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
+    create_process("Time", PROCESS_RUNNING, (uint32_t)inc_time, stack1 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
+    create_process("Print", PROCESS_RUNNING, (uint32_t)print_time, stack2 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
+    set_current_process(p0->id);
 
-    VFSFile* file = vfs_open_file("/apps/calc.bin", VFS_READ);
+    __asm__ volatile("sti"); // reenable maskable interrupts
 
-    if (file == NULL) {
-        printf("Unable to open file\n");
-        return;
-    }
+    // PageTable* app = soft_copy_table((PageTable*)kernel_table, 1);
+    //
+    // load_page_table(&app->pde);
+    //
+    // while (new_page(PAGER_ERROR, &app->pde, PAGE_GLOBAL) < (void*)0x1000000 - PAGE_SIZE)
+    //     ;
 
-    uint8_t* buf = (uint8_t*)(0x400000);
-    vfs_seek(file, 4, VFS_BEG);
-    while (vfs_read(file, buf, 1024)) {
-        buf += 1024;
-    }
+    // VFSFile* file = vfs_open_file("/apps/brainfuck.bin", VFS_READ);
+    //
+    // if (file == NULL) {
+    //     printf("Unable to open file\n");
+    //     return;
+    // }
+    //
+    // uint8_t* buf = (uint8_t*)(0x400000);
+    // vfs_seek(file, 4, VFS_BEG);
+    // while (vfs_read(file, buf, 1024)) {
+    //     buf += 1024;
+    // }
+    //
+    // uint32_t entry_point;
+    // vfs_seek(file, 0, VFS_BEG);
+    // vfs_read(file, &entry_point, 4);
+    //
+    // vfs_close_file(file);
 
-    uint32_t entry_point;
-    vfs_seek(file, 0, VFS_BEG);
-    vfs_read(file, &entry_point, 4);
-
-    vfs_close_file(file);
-
-    void (*entry_function)() = (void*)entry_point;
-    entry_function();
+    // void (*entry_function)() = (void*)entry_point;
+    // entry_function();
 
     // VFSDirectory* dir = vfs_open_directory("/");
     // if (dir == NULL) {

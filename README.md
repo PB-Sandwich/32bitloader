@@ -19,7 +19,6 @@ NOP
 ### 0x01 get app info
 ```
 output
-eax = safe heap space
 ebx = stdout
 ecx = stdin
 edx = stderr
@@ -93,6 +92,50 @@ input
 ebx = file path (char*)
 output
 eax = return value (0 for success)
+```
+
+### 0x0a - 0x0f nop
+
+### 0x10 request new page
+```
+input
+ebx = new page physical address (set to pager error (-1)) for any free page
+output
+ebx = virtual address of the new page (returns pager error (-1) on fail)
+```
+
+### 0x11 free page
+```
+input
+ebx = page address
+```
+
+### 0x12 virtual address to physical address
+```
+input
+ebx = virtual address
+output
+ebx = physical address
+```
+
+### 0x13 virtual address to physical address from other table
+this can be used to map another processes pages
+```
+input
+ebx = virtual address
+edx = pointer to page table
+output
+ebx = physical address
+```
+
+### 0x14 - 0x1f nop
+
+### 0x20 create process
+```
+input
+ebx = pointer to process init struct
+output
+ebx = pointer to process struct
 ```
 
 
