@@ -3,6 +3,12 @@
 #define TIME_H
 
 #include <stdint.h>
-extern volatile uint64_t ticks;
+
+struct time {
+    uint32_t seconds;
+    uint32_t millisecond;
+};
+
+struct time get_time();
 
 #endif

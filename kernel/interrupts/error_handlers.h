@@ -2,18 +2,7 @@
 #pragma once
 
 #include <stdint.h>
-
-struct interrupt_frame {
-  uint32_t eip;
-  uint32_t cs;
-  uint32_t eflags;
-  uint32_t esp;
-  uint32_t ss;
-  uint32_t es;
-  uint32_t ds;
-  uint32_t fs;
-  uint32_t gs;
-};
+#include <x86_64_structures.h>
 
 __attribute__((interrupt)) void divide_by_zero(struct interrupt_frame *frame);
 __attribute__((interrupt)) void debug(struct interrupt_frame *frame);
