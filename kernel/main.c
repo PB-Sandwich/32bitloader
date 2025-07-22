@@ -166,16 +166,6 @@ __attribute__((section(".text.start"))) void kernel_entry(struct GDT* gdt)
 
 PageTable* kernel_table;
 
-void inc_time()
-{
-    while (1) {
-        if (time.millisecond > 1000) {
-            time.seconds += 1;
-            time.millisecond -= 1000;
-        }
-    }
-}
-
 void print_time()
 {
     uint32_t start_time = time.seconds;
@@ -241,37 +231,42 @@ void main()
     uint32_t stack2 = (uint32_t)new_page(PAGER_ERROR, &kernel_table->pde, 0);
 
     struct process* p0 = create_process("Dummy", PROCESS_RUNNING, (uint32_t)NULL, stack0 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
-    create_process("Time", PROCESS_RUNNING, (uint32_t)inc_time, stack1 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
+    //create_process("Time", PROCESS_RUNNING, (uint32_t)inc_time, stack1 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
     create_process("Print", PROCESS_RUNNING, (uint32_t)print_time, stack2 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
     set_current_process(p0->id);
 
-    __asm__ volatile("sti"); // reenable maskable interrupts
+    PageTable* app = soft_copy_table((PageTable*)kernel_table, 1);
 
-    // PageTable* app = soft_copy_table((PageTable*)kernel_table, 1);
-    //
-    // load_page_table(&app->pde);
-    //
-    // while (new_page(PAGER_ERROR, &app->pde, PAGE_GLOBAL) < (void*)0x1000000 - PAGE_SIZE)
-    //     ;
+    load_page_table(&app->pde);
 
-    // VFSFile* file = vfs_open_file("/apps/brainfuck.bin", VFS_READ);
-    //
-    // if (file == NULL) {
-    //     printf("Unable to open file\n");
-    //     return;
-    // }
-    //
-    // uint8_t* buf = (uint8_t*)(0x400000);
-    // vfs_seek(file, 4, VFS_BEG);
-    // while (vfs_read(file, buf, 1024)) {
-    //     buf += 1024;
-    // }
-    //
-    // uint32_t entry_point;
-    // vfs_seek(file, 0, VFS_BEG);
-    // vfs_read(file, &entry_point, 4);
-    //
-    // vfs_close_file(file);
+    while (new_page(PAGER_ERROR, &app->pde, PAGE_GLOBAL) < (void*)0x1000000 - PAGE_SIZE)
+        ;
+    uint32_t app_stack = (uint32_t)new_page(PAGER_ERROR, &app->pde, 0);
+
+    VFSFile* file = vfs_open_file("/apps/brainfuck.bin", VFS_READ);
+
+    if (file == NULL) {
+        printf("Unable to open file\n");
+        return;
+    }
+
+    uint8_t* buf = (uint8_t*)(0x400000);
+    vfs_seek(file, 4, VFS_BEG);
+    while (vfs_read(file, buf, 1024)) {
+        buf += 1024;
+    }
+
+    uint32_t entry_point;
+    vfs_seek(file, 0, VFS_BEG);
+    vfs_read(file, &entry_point, 4);
+
+    vfs_close_file(file);
+
+    VFSFile* tty = vfs_open_file("/dev/tty", VFS_READ | VFS_WRITE);
+
+    create_process("brainfuck", PROCESS_RUNNING, entry_point, app_stack + PAGE_SIZE - 16, app, tty, tty, tty);
+
+    load_page_table(&kernel_table->pde);
 
     // void (*entry_function)() = (void*)entry_point;
     // entry_function();
@@ -286,6 +281,10 @@ void main()
     //     printf("Entry: %s\n", dir->entries[i].path);
     // }
 
+    __asm__ volatile("sti"); // reenable maskable interrupts
+    __asm__ volatile("cli");
+    remove_process(p0->id);
+    __asm__ volatile("sti");
     while (1)
         ;
 }
