@@ -16,13 +16,10 @@ typedef enum Keycode EstrosKeycode;
 // This way it can be swapped out with any type once logic for that type is added
 typedef int32_t number_t;
 
-
-
 number_t parse_number(char *buffer)
 {
     return atoi(buffer);
 }
-
 
 enum CalcExprType
 {
@@ -898,12 +895,15 @@ void gob_app_handle_input(GobApp *app, EstrosKeycode keycode)
 
 int main()
 {
+    File *kdb = open_file("/dev/kdb", ESTROS_READ);
     GobApp app;
     app.running = true;
     GobElement input_temp_label;
     GobElement input_box;
     GobElement input_box2;
-    gob_init_label(&input_temp_label, "(5.5 / 2) * (24 / 8) - 232 * (9 + 2)", 20, 5, EC_Blue, EC_White);
+    char buffer[255];
+    gob_sprintf(buffer, "(%f / %d) * (%u / %u) - %f * (%.3f + 2)", 5.2323, 2, 69, 420, 232.232, 9.1233456);
+    gob_init_label(&input_temp_label, buffer, 20, 5, EC_Blue, EC_White);
     gob_init_input(&input_box, 20, 20, 20, EC_Black, EC_LightGray, EC_White, EC_DarkGray);
     gob_init_input(&input_box2, 20, 10, 20, EC_Black, EC_LightGray, EC_White, EC_DarkGray);
     gob_init_app(&app, get_text_buffer_address(), 80, 25, EC_Green);
@@ -915,7 +915,7 @@ int main()
 
     while (app.running)
     {
-        // gob_app_handle_input(&app, exports->scancode_to_keycode(exports->wait_for_keypress()));
+        gob_app_handle_input(&app, scancode_to_keycode(wait_for_keypress(kdb)));
     }
     return 0;
 

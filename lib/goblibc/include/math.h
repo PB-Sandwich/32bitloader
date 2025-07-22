@@ -10,6 +10,9 @@
 #ifndef _IEEE_WORD_ORDER
 #define	_IEEE_WORD_ORDER	__BYTE_ORDER
 #endif
+#ifndef _BYTE_ORDER
+#define _BYTE_ORDER __BYTE_ORDER
+#endif
 
 #define _LITTLE_ENDIAN __LITTLE_ENDIAN
 #define _BIG_ENDIAN __BIG_ENDIAN
