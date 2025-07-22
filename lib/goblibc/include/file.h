@@ -12,7 +12,6 @@
  */
 #pragma once
 #include <stdint.h>
-#include <bits/alltypes.h>
 
 /// @brief Temporary implementation of FILE-like struct, only for use with strings. Contains some iterator like data
 struct _IO_FILE

@@ -1,8 +1,8 @@
 .PHONY: all
 
 INCLUDE_DIR := lib/estros/include
-CC := gcc
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -fno-stack-protector -msoft-float -I $(INCLUDE_DIR)
+CC := x86_64-elf-gcc 
+CFLAGS := -m32 -nostdlib -ffreestanding -Wall -Wextra -g -fmerge-constants -I  $(INCLUDE_DIR)
 BUILD_DIR := build/lib/estros
 SOURCE_DIR := lib/estros/src
 
@@ -12,7 +12,7 @@ LIB_PATH := $(BUILD_DIR)/$(LIB_NAME)
 
 TARGETS := 
 
-ARCHIVER := ar
+ARCHIVER := x86_64-elf-gcc-ar
 ARCHIVER_FLAGS := rcs
 
 all: $(TARGETS)

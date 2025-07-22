@@ -1,5 +1,5 @@
 #pragma once
-#include <features.h>
+
 #include <file.h>
 #include <stdarg.h>
 /* The value returned by fgetc and similar functions to indicate the
