@@ -4,11 +4,12 @@ PROJECT_NAME := ctest
 LIBC_PATH := ./build/lib/goblibc
 LIBC_NAME := goblibc
 LIBC_INCLUDE_DIR := lib/goblibc/include
+LINKER_SCRIPT_PATH := apps/linker.ld
 
 CC := x86_64-elf-gcc
 CFLAGS := -m32 -nostdlib -ffreestanding -Wall -Wextra -g -fmerge-constants -I $(LIBC_INCLUDE_DIR)
 LD := x86_64-elf-ld
-LDFLAGS := -m elf_i386 -nostdlib -T apps/$(PROJECT_NAME)/linker.ld
+LDFLAGS := -m elf_i386 -nostdlib -T $(LINKER_SCRIPT_PATH)
 
 all:
 	mkdir -p build/apps/$(PROJECT_NAME)

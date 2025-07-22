@@ -222,7 +222,7 @@ void main()
     while (new_page(PAGER_ERROR, test, PAGE_GLOBAL) < (void*)0x1000000 - PAGE_SIZE)
         ;
 
-    VFSFile* file = vfs_open_file("/apps/brainfuck.bin", VFS_READ);
+    VFSFile* file = vfs_open_file("/apps/calc.bin", VFS_READ);
 
     if (file == NULL) {
         printf("Unable to open file\n");

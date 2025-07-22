@@ -44,7 +44,7 @@ all:
 
 ```
 ## C
-An example of a simple c program makefile that links to goblibc. This assumes that you are only using one file and it's called `main.c`
+An example of a simple c program makefile that links to goblibc. This assumes that you are only using one file and it's called `main.c`. It also links to the global linker file which should be fine fo all apps
 
 ```makefile
 
@@ -54,11 +54,13 @@ PROJECT_NAME := yourappnamehere
 LIBC_PATH := ./build/lib/goblibc
 LIBC_NAME := goblibc
 LIBC_INCLUDE_DIR := lib/goblibc/include
+LINKER_SCRIPT_PATH := apps/linker.ld
+
 
 CC := x86_64-elf-gcc
 CFLAGS := -m32 -nostdlib -ffreestanding -Wall -Wextra -g -fmerge-constants -I $(LIBC_INCLUDE_DIR)
 LD := x86_64-elf-ld
-LDFLAGS := -m elf_i386 -nostdlib -T apps/$(PROJECT_NAME)/linker.ld
+LDFLAGS := -m elf_i386 -nostdlib -T $(LINKER_SCRIPT_PATH)
 
 all:
     mkdir -p build/apps/$(PROJECT_NAME)
@@ -67,12 +69,12 @@ all:
     $(LD) $(LDFLAGS) -o build/apps/$(PROJECT_NAME).elf build/apps/$(PROJECT_NAME)/$(PROJECT_NAME).o -L$(LIBC_PATH) -l$(LIBC_NAME)
 ```
 
-An example linker file that will be required for the build process
+An example linker file that will be required for the build process. This file is also located in `apps/` and be referenced to avoid duplication. 
 ```ld
 ENTRY(app_main)
 
 SECTIONS {
-    . = 0x300000;
+    . = 0x400000;
 
     .text.start ALIGN(4K) : {
         *(.text.start)
@@ -86,6 +88,7 @@ SECTIONS {
 ```
 
 An entry function for a c program should look like this
+
 ```c
     int main(){/*your code here*/}
 ```
