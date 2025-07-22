@@ -93,7 +93,7 @@ void syscall_c(struct registers* regs)
 
     case 0x20:
         pd = (void*)regs->ebx;
-        regs->ebx = (uint32_t)create_process(pd->name, pd->initial_state, pd->entry_point, pd->stack_base, pd->size, pd->stdout, pd->stdin, pd->stderr);
+        regs->ebx = (uint32_t)create_process(pd->name, pd->initial_state, pd->entry_point, pd->stack_base, pd->page_table, pd->stdout, pd->stdin, pd->stderr);
         break;
     }
     //__asm__ volatile("nop\n\t"); // needed for gcc as it made the wrong jump address

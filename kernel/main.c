@@ -169,17 +169,19 @@ PageTable* kernel_table;
 void inc_time()
 {
     while (1) {
+        if (time.millisecond > 1000) {
+            time.seconds += 1;
+            time.millisecond -= 1000;
+        }
     }
 }
 
 void print_time()
 {
-    struct time time = get_time();
     uint32_t start_time = time.seconds;
     while (1) {
-        time = get_time();
         if (start_time < time.seconds) {
-            //printf("uptime is %ds\n", time.seconds);
+            printf("uptime is %ds\n", time.seconds);
             start_time = time.seconds;
         }
     }
@@ -238,9 +240,9 @@ void main()
     uint32_t stack1 = (uint32_t)new_page(PAGER_ERROR, &kernel_table->pde, 0);
     uint32_t stack2 = (uint32_t)new_page(PAGER_ERROR, &kernel_table->pde, 0);
 
-    struct process* p0 = create_process("Dummy", PROCESS_RUNNING, (uint32_t)NULL, stack0 + PAGE_SIZE - 16, 0, NULL, NULL, NULL);
-    create_process("Time", PROCESS_RUNNING, (uint32_t)inc_time, stack1 + PAGE_SIZE - 16, 0, NULL, NULL, NULL);
-    create_process("Print", PROCESS_RUNNING, (uint32_t)print_time, stack2 + PAGE_SIZE - 16, 0, NULL, NULL, NULL);
+    struct process* p0 = create_process("Dummy", PROCESS_RUNNING, (uint32_t)NULL, stack0 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
+    create_process("Time", PROCESS_RUNNING, (uint32_t)inc_time, stack1 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
+    create_process("Print", PROCESS_RUNNING, (uint32_t)print_time, stack2 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
     set_current_process(p0->id);
 
     __asm__ volatile("sti"); // reenable maskable interrupts

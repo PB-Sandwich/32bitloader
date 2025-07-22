@@ -9,6 +9,6 @@ struct time {
     uint32_t millisecond;
 };
 
-struct time get_time();
+extern volatile struct time time;
 
 #endif

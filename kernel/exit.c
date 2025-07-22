@@ -38,21 +38,21 @@ void exit_kernel()
     vfs_write(tty, "\ntail of /sys/kernel.log\nexited kernel\n", strlen("\ntail of /sys/kernel.log\nexited kernel\n"));
     vfs_write(tty, "running stack trace in\n", strlen("running stack trace in\n"));
 
-    uint64_t start_time = time.seconds;
-    int i = 5;
-    while (1) {
-        if (i == 0) {
-            break;
-        }
-        uint64_t current_time = time.seconds;
-        if (current_time > start_time + 1) {
-            start_time = time.seconds;
-            printf("%d...", i);
-            i--;
-        }
-    }
-    printf("\n");
-    run_stack_trace();
+    // uint64_t start_time = time.seconds;
+    // int i = 5;
+    // while (1) {
+    //     if (i == 0) {
+    //         break;
+    //     }
+    //     uint64_t current_time = time.seconds;
+    //     if (current_time > start_time + 1) {
+    //         start_time = time.seconds;
+    //         printf("%d...", i);
+    //         i--;
+    //     }
+    // }
+    // printf("\n");
+    // run_stack_trace();
 
     while (1)
         ;

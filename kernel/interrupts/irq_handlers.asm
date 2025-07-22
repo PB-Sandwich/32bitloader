@@ -11,21 +11,16 @@ irq0_timer:
     ; Compute pointer to interrupt frame:
     ; The CPU pushed 5 words after pusha if ring 0 → [eip, cs, eflags, esp, ss]
     ; So it’s located at (esp + 8*4)
-    mov edx, esp
-    add edx, 8 * 4
-
-    push edx
+    mov eax, esp
     push eax
 
     call irq0_timer_c
 
-    add esp, 8
+    add esp, 4
 
-    popa
-
-    mov eax, [esp + 12]
     mov esp, eax
 
+    popa
     sti
     iret
 

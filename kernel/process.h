@@ -7,14 +7,8 @@
 #include <pager.h>
 #include <x86_64_structures.h>
 
-struct process_data {
-    struct interrupt_frame frame;
-    struct registers registers;
-    struct sse_registers sse_registers;
-};
-
 struct process {
-    struct process_data process_data;
+    uintptr_t esp;
     PageTable* page_table;
     VFSFile *stdout, *stdin, *stderr;
     uint8_t state;
@@ -39,12 +33,12 @@ struct process_init_data {
     char* name;
     uint32_t entry_point;
     uint32_t stack_base;
-    uint32_t size;
+    PageTable* page_table;
     VFSFile *stdout, *stdin, *stderr;
 };
 
 struct process* create_process(char* name, uint8_t state, uint32_t entry_point, uint32_t stack_base,
-    uint32_t size, VFSFile* stdout, VFSFile* stdin, VFSFile* stderr);
+    PageTable* table, VFSFile* stdout, VFSFile* stdin, VFSFile* stderr);
 
 struct process* get_process_by_id(uint32_t id);
 void remove_process(uint32_t id);
