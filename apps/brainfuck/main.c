@@ -204,6 +204,12 @@ void reset_display(const char *code)
     sys_print(code, strlen(code));
 }
 
+void prepare_for_exec()
+{
+    sys_set_cursor(0, 0);
+    sys_clear();
+}
+
 void display_help()
 {
     sys_clear();
@@ -345,6 +351,7 @@ void command_mode(AppState *app, Input input)
         else if (strncmp(app->command_buffer, "run", 50) == 0 || strncmp(app->command_buffer, "r", 50) == 0)
         {
             app->current_mode = EEM_Running;
+            prepare_for_exec();
             init_exec_data(&app->exec_data, app->code_buffer, sizeof(app->code_buffer));
             return;
         }
@@ -382,7 +389,7 @@ void command_mode(AppState *app, Input input)
 
 void run_mode(AppState *app, bool has_input, Input input)
 {
-    if (app->current_mode != EEM_Running)
+    if (app->current_mode != EEM_Running && app->current_mode != EEM_RunningWaitingForInput)
     {
         return;
     }
@@ -392,10 +399,13 @@ void run_mode(AppState *app, bool has_input, Input input)
         app->current_mode = EEM_RunningFinished;
         return;
     }
-    sys_clear();
+    // sys_clear();
     enum CodeRunResult res = step_code(&app->exec_data, has_input, keycode_to_ascii(input.keycode, input.shift_pressed));
     switch (res)
     {
+    case ECRR_Unfinished:
+        app->current_mode = EEM_Running;
+        break;
     case ECRR_ExpectInput:
         app->current_mode = EEM_RunningWaitingForInput;
         break;
@@ -466,7 +476,7 @@ int main()
                 input.keycode = scancode_to_keycode(event.scancode);
                 input.shift_pressed = app.shift_state;
             }
-            run_mode(&app, in_len > 0, input);
+            run_mode(&app, in_len > 0 && event.type == KEY_PRESSED, input);
         }
         else
         {
