@@ -1,6 +1,7 @@
 [bits 32]
 global irq0_timer
 extern irq0_timer_c
+extern get_current_process
 
 irq0_timer:
     cli
@@ -8,9 +9,6 @@ irq0_timer:
 
     mov eax, esp
 
-    ; Compute pointer to interrupt frame:
-    ; The CPU pushed 5 words after pusha if ring 0 → [eip, cs, eflags, esp, ss]
-    ; So it’s located at (esp + 8*4)
     mov eax, esp
     push eax
 
@@ -19,6 +17,11 @@ irq0_timer:
     add esp, 4
 
     mov esp, eax
+
+    mov eax, cr3
+    and eax, 0xfff
+    or eax, ebx,
+    mov cr3, eax
 
     popa
     sti
