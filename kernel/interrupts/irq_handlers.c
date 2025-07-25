@@ -1,4 +1,5 @@
 #include "irq_handlers.h"
+#include "pager.h"
 #include <inboutb.h>
 #include <keyboard/keyboard.h>
 #include <memutils.h>
@@ -22,6 +23,10 @@ volatile struct time time = { 0 };
 uint32_t irq0_timer_c(uint32_t* esp)
 {
     time.millisecond += 10;
+    if (time.millisecond > 1000) {
+        time.seconds += 1;
+        time.millisecond -= 1000;
+    }
 
     struct process* current = get_current_process();
     current->esp = (uint32_t)esp;
@@ -29,6 +34,7 @@ uint32_t irq0_timer_c(uint32_t* esp)
     struct process* next = get_next_process();
 
     outb(PIC1_CMD, PIC_EOI);
+    __asm__ volatile("mov %0, %%ebx\n\t" ::"r"(&next->page_table->pde));
     return next->esp;
 }
 
