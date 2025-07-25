@@ -60,7 +60,7 @@ Process* launch_file(char* path, File* stdout_file, File* stdin_file, File* stde
 
     if (new_apps_table == PAGER_ERROR) {
         for (uint32_t i = 0; i < page_addresses_length; i++) {
-            free_page(page_addresses, PAGER_ERROR);
+            free_page((void*)page_addresses[i], PAGER_ERROR);
         }
         close_file(exe);
         return NULL;
@@ -79,7 +79,7 @@ Process* launch_file(char* path, File* stdout_file, File* stdin_file, File* stde
     read_file(exe, &entry_point, 4);
 
     for (uint32_t i = 0; i < number_of_pages; i++) {
-        read_file(exe, (void*)page_addresses[i], PAGE_SIZE - 1);
+        read_file(exe, (void*)page_addresses[i], PAGE_SIZE);
     }
 
     char name[64];
