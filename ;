@@ -1,4 +1,3 @@
-#include "x86_64_structures.h"
 #include <filesystem/virtual-filesystem.h>
 #include <heap.h>
 #include <memutils.h>
@@ -62,26 +61,19 @@ struct process* create_process(char* name, uint8_t start_state, uint32_t entry_p
     entry->prev = prev;
     entry->next = next;
 
-    uintptr_t esp = stack_base - sizeof(struct registers) - sizeof(struct interrupt_frame);
-    esp &= ~0xF; // align to 16 bytes
-
     struct process* process = &entry->process;
-    process->esp = esp;
     process->id = get_free_pid();
-    process->page_table = table;
+    memcpy(process->name, name, strlen(name));
     process->stdout = stdout;
     process->stdin = stdin;
     process->stderr = stderr;
     process->state = start_state;
-    memcpy(process->name, name, strlen(name));
 
-    struct registers regs = { 0 };
-    regs.esp = esp + sizeof(struct interrupt_frame);
-    regs.ebp = stack_base;
+    process->page_table = table;
 
     struct interrupt_frame frame = { 0 };
     frame.eip = entry_point;
-    frame.esp = regs.esp;
+    frame.esp = stack_base;
 
     __asm__ volatile(
         "mov %%cs, %%ax\n\t"
@@ -95,8 +87,8 @@ struct process* create_process(char* name, uint8_t start_state, uint32_t entry_p
         "mov %%fs, %%ax\n\t"
         "mov %%ax, %4\n\t"
 
-        : "=m"(frame.cs), "=m"(frame.ss), "=m"(frame.ds),
-        "=m"(frame.es), "=m"(frame.fs)
+        : "=m"(frame->cs), "=m"(frame->ss), "=m"(frame->ds),
+        "=m"(frame->es), "=m"(frame->fs)
         :
         : "eax");
 
@@ -106,15 +98,12 @@ struct process* create_process(char* name, uint8_t start_state, uint32_t entry_p
         "pushf\n\t"
         "pop %%eax\n\t"
         "mov %%eax, %1\n\t"
-        : "=m"(frame.gs), "=m"(frame.eflags)
+        : "=m"(frame->gs), "=m"(frame->eflags)
         :
         : "eax"
 
     );
-    frame.eflags |= 1 << 9; // make sure the interrupt flag is set
-
-    memcpy((void*)esp + sizeof(struct registers), &frame, sizeof(struct interrupt_frame));
-    memcpy((void*)esp, &regs, sizeof(struct registers));
+    frame->eflags |= 1 << 9; // make sure the interrupt flag is set
 
     number_of_processes++;
     next->prev = entry;

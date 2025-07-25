@@ -61,6 +61,8 @@ enum {
 #define PAGER_ERROR (void*)-1
 #define PAGE_SIZE 0x1000
 
+extern PageTable* kernel_table;
+
 void init_pager();
 
 void load_page_table(PDETable* pde_table);
