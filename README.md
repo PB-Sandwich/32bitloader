@@ -13,15 +13,12 @@ The value in `eax` will specify the operation (see table below).
 
 ### 0x00
 ```
-NOP
+nop
 ```
 
-### 0x01 get app info
+### 0x01
 ```
-output
-ebx = stdout
-ecx = stdin
-edx = stderr
+nop
 ```
 
 ### 0x02 open
@@ -100,6 +97,7 @@ eax = return value (0 for success)
 ```
 input
 ebx = new page physical address (set to pager error (-1)) for any free page
+edx = page table (set to  pager error (-1) for it to use the current apps page table)
 output
 ebx = virtual address of the new page (returns pager error (-1) on fail)
 ```
@@ -108,34 +106,35 @@ ebx = virtual address of the new page (returns pager error (-1) on fail)
 ```
 input
 ebx = page address
+edx = page table (set to  pager error (-1) for it to use the current apps page table)
 ```
 
-### 0x12 virtual address to physical address
+### 0x12 create new table
 ```
-input
-ebx = virtual address
 output
-ebx = physical address
+ebx = pointer to the new page table
 ```
 
-### 0x13 virtual address to physical address from other table
-this can be used to map another processes pages
+### 0x13 - 0x1f nop
+
+### 0x20 get current process (get self)
 ```
-input
-ebx = virtual address
-edx = pointer to page table
 output
-ebx = physical address
+ebx = pointer to the process struct
 ```
 
-### 0x14 - 0x1f nop
-
-### 0x20 create process
+### 0x21 create process
 ```
 input
 ebx = pointer to process init struct
 output
 ebx = pointer to process struct
+```
+
+### 0x22 exit
+```
+input
+ebx = exit code
 ```
 
 

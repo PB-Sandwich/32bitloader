@@ -33,7 +33,7 @@ uint8_t* get_line(void (*printchar)(char))
     }
     uint32_t buffer_size = 32;
 
-    uint32_t i = 1;
+    uint32_t i = 0;
     uint8_t shifted = 0;
     while (1) {
         KeyboardEvent event;

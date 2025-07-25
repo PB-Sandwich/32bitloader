@@ -1,7 +1,8 @@
-
-#pragma once
+#ifndef ESTROS_PAGER_H
+#define ESTROS_PAGER_H
 
 #include <stdint.h>
+#include <estros/syscall.h>
 
 typedef struct {
     uint32_t present : 1;
@@ -61,22 +62,28 @@ enum {
 #define PAGER_ERROR (void*)-1
 #define PAGE_SIZE 0x1000
 
-extern PageTable* kernel_table;
-
-void init_pager();
-
-void load_page_table(PDETable* pde_table);
-
-PageTable* create_new_table();
+static inline PageTable* create_new_table()
+{
+    PageTable* tlb;
+    __asm__ volatile("int $0x40\n\t" : "=b"(tlb) : "a"(SYSCALL_CREATE_NEW_TABLE));
+    return tlb;
+}
 
 uintptr_t virt_to_phys(uintptr_t virtual_address, PDETable* table);
 
 // use PAGER_ERROR as address for it to allocate any free page
 // if requested page isn't available it will return PAGER_ERROR
 // returns the new vitrual address
-void* new_page(void* physical_address, PDETable* pde_table, uint32_t flags);
-void free_page(void* virtual_address, PDETable* pde_table);
+static inline void* new_page(void* physical_address, PDETable* pde_table)
+{
+    void* ret;
+    __asm__ volatile("int $0x40\n\t" : "=b"(ret) : "a"(SYSCALL_REQUEST_NEW_PAGE), "b"(physical_address), "d"(pde_table));
+    return ret;
+}
 
-PageTable* soft_copy_table(PageTable* table, uint16_t number_of_entries);
+static inline void free_page(void* virtual_address, PDETable* pde_table)
+{
+    __asm__ volatile("int $0x40\n\t" : : "a"(SYSCALL_FREE_PAGE), "b"(virtual_address), "d"(pde_table));
+}
 
-void free_pde_table(PDETable* table);
+#endif

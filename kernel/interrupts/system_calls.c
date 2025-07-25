@@ -15,15 +15,12 @@ void syscall_c(struct registers* regs)
     switch (regs->eax) {
         struct process* process;
         struct process_init_data* pd;
+        PageTable* page_table;
 
     case 0x00:
         break;
 
     case 0x01:
-        process = get_current_process();
-        regs->ebx = (uint32_t)process->stdout;
-        regs->ecx = (uint32_t)process->stdin;
-        regs->edx = (uint32_t)process->stderr;
         break;
 
     case 0x02:
@@ -67,33 +64,45 @@ void syscall_c(struct registers* regs)
         break;
 
     case 0x10:
-        process = get_current_process();
-        regs->ebx = (uint32_t)new_page((void*)regs->ebx, &process->page_table->pde, 0);
+        if (regs->edx == (uint32_t)PAGER_ERROR) {
+            page_table = get_current_process()->page_table;
+        } else {
+            page_table = (PageTable*)regs->edx;
+        }
+        regs->ebx = (uint32_t)new_page((void*)regs->ebx, &page_table->pde, 0);
         break;
 
     case 0x11:
-        process = get_current_process();
-        free_page((void*)regs->ebx, &process->page_table->pde);
+        if (regs->edx == (uint32_t)PAGER_ERROR) {
+            page_table = get_current_process()->page_table;
+        } else {
+            page_table = (PageTable*)regs->edx;
+        }
+        free_page((void*)regs->ebx, &page_table->pde);
         break;
 
     case 0x12:
-        process = get_current_process();
-        regs->ebx = virt_to_phys(regs->ebx, &process->page_table->pde);
+        regs->ebx = (uint32_t)soft_copy_table(kernel_table, 1);
         break;
 
     case 0x13:
-        regs->ebx = virt_to_phys(regs->ebx, (PDETable*)regs->edx);
-        break;
-
-    case 0x14:
         break;
         // nops
     case 0x1f:
         break;
 
     case 0x20:
+        regs->ebx = (uint32_t)get_current_process();
+        break;
+
+    case 0x21:
         pd = (void*)regs->ebx;
-        regs->ebx = (uint32_t)create_process(pd->name, pd->initial_state, pd->entry_point, pd->stack_base, pd->page_table, pd->stdout, pd->stdin, pd->stderr);
+        regs->ebx = (uint32_t)create_process(pd->name, pd->initial_state, pd->entry_point, pd->stack_base_current_table, pd->stack_base_apps_table, pd->page_table, pd->stdout, pd->stdin, pd->stderr);
+        break;
+
+    case 0x22:
+        process = get_current_process();
+        process->state = PROCESS_TERMINATED;
         break;
     }
     //__asm__ volatile("nop\n\t"); // needed for gcc as it made the wrong jump address

@@ -61,6 +61,8 @@ debug:
 libs:
 	@echo "Building standard c library"
 	make --file lib/goblibc/makefile all
+	@echo "Building estros user library"
+	make --file lib/estros/makefile all
 
 apps: libs
 	@echo "Building default apps"
