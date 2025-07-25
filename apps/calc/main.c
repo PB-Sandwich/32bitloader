@@ -12,13 +12,16 @@
 #include <estros/keyboard.h>
 #include <estros/file.h>
 
+#define PREV_LABEL_TOTAL_COUNT 22
 typedef enum Keycode EstrosKeycode;
 // This way it can be swapped out with any type once logic for that type is added
-typedef int32_t number_t;
+typedef float number_t;
 
 number_t parse_number(char *buffer)
 {
-    return atoi(buffer);
+    number_t res = 0;
+    gob_sscanf(buffer, "%f", &res);
+    return res;
 }
 
 enum CalcExprType
@@ -263,7 +266,7 @@ bool parse_input(const char *input_buffer, int32_t input_buffer_len, char **erro
                 if (input_buffer[input_buffer_pos] == '.')
                 {
                     // temporary until floats are added
-                    if (had_decimal_point || true)
+                    if (had_decimal_point)
                     {
                         *error_message = "Invalid number";
                         return false;
@@ -358,7 +361,8 @@ bool execute(CalcExpression *ops, int32_t ops_len, number_t *result, char **erro
                 number_stack_push(&stack, a / b);
                 break;
             case ECOT_Mod:
-                number_stack_push(&stack, a % b);
+                number_stack_push(&stack, -99999999);
+                // number_stack_push(&stack, a % b);
                 break;
             }
         }
@@ -490,6 +494,8 @@ struct GobApp
 {
     struct GobElement *root;
     struct GobElement *current_focus;
+    /// @brief Various data specific to the application
+    void *internal;
     ScreenData screen;
     KernelTerminalColors default_background_color;
     KernelTerminalColors status_bar_background_color;
@@ -522,7 +528,9 @@ struct GobInputBoxData
     int32_t offset;
     int32_t buffer_pos;
     KernelTerminalColors unfocused_text_color;
-    KernelTerminalColors unfocused_background_color
+    KernelTerminalColors unfocused_background_color;
+    /// @brief Called when user presses enter on the text box
+    void (*input_accepted)(struct GobElement *, char *text);
 };
 
 typedef struct GobElement GobElement;
@@ -569,6 +577,10 @@ void gob_label_free(GobElement *elem)
 
 void gob_label_render(GobElement *elem)
 {
+    if (elem->internal == NULL)
+    {
+        return;
+    }
     GobLabelData *data = (GobLabelData *)(elem->internal);
     gob_term_text(&elem->app->screen, elem->x, elem->y, data->text, strlen(data->text), data->background_color, data->text_color);
 }
@@ -657,10 +669,38 @@ void gob_input_render(GobElement *elem)
 
 void gob_input_handle_input(GobElement *elem, InputEventData input)
 {
+    if (!input.pressed)
+    {
+        return;
+    }
     // placeholder
-    char ch = keycode_to_ascii(input.keycode, input.shift_pressed);
     GobInputBoxData *data = (GobInputBoxData *)(elem->internal);
-    data->input_buffer[data->buffer_pos++] = ch;
+    if (input.keycode > 0x39 ||
+        input.keycode == KC_BACKSPACE ||
+        input.keycode == KC_ENTER ||
+        input.keycode == KC_LEFT_SHIFT ||
+        input.keycode == KC_RIGHT_SHIFT)
+    {
+        switch (input.keycode)
+        {
+        case KC_BACKSPACE:
+            if (data->buffer_pos > 0)
+            {
+                data->input_buffer[--data->buffer_pos] = 0;
+            }
+            break;
+        case KC_ENTER:
+            if (data->input_accepted != NULL)
+            {
+                data->input_accepted(elem, data->input_buffer);
+            }
+        }
+    }
+    else
+    {
+        char ch = keycode_to_ascii(input.keycode, input.shift_pressed);
+        data->input_buffer[data->buffer_pos++] = ch;
+    }
     gob_term_text_fixed(&elem->app->screen,
                         elem->x,
                         elem->y,
@@ -672,6 +712,14 @@ void gob_input_handle_input(GobElement *elem, InputEventData input)
                         data->text_color);
 }
 
+void gob_input_free(GobElement *elem)
+{
+    GobInputBoxData *data = (GobInputBoxData *)elem->internal;
+    free(data->input_buffer);
+    free(elem->internal);
+    free(elem);
+}
+
 void gob_init_input(GobElement *elem,
                     int32_t x,
                     int32_t y,
@@ -679,7 +727,7 @@ void gob_init_input(GobElement *elem,
                     KernelTerminalColors text_color,
                     KernelTerminalColors background_color,
                     KernelTerminalColors unfocused_text_color,
-                    KernelTerminalColors unfocused_background_color)
+                    KernelTerminalColors unfocused_background_color, void (*accept_input)(GobElement *elem, char *text))
 {
     GobInputBoxData *data = (GobInputBoxData *)malloc(sizeof(GobInputBoxData));
     elem->internal = data;
@@ -688,11 +736,13 @@ void gob_init_input(GobElement *elem,
     elem->focus_changed = gob_input_focus_changed;
     elem->handle_input = gob_input_handle_input;
     elem->can_be_focused = true;
+    elem->free = gob_input_free;
     data->background_color = background_color;
     data->text_color = text_color;
     data->unfocused_background_color = unfocused_background_color;
     data->unfocused_text_color = unfocused_text_color;
     data->width = width;
+    data->input_accepted = accept_input;
 }
 
 typedef struct GobApp GobApp;
@@ -853,7 +903,7 @@ void gob_app_advance_focus_backwards(GobApp *app, GobElement *start)
     }
 }
 
-void gob_app_handle_input(GobApp *app, EstrosKeycode keycode)
+void gob_app_handle_input(GobApp *app, EstrosKeycode keycode, bool pressed)
 {
     if (keycode == KC_TAB)
     {
@@ -867,19 +917,17 @@ void gob_app_handle_input(GobApp *app, EstrosKeycode keycode)
         }
         return;
     }
-    EstrosKeycode key = keycode & 0b01111111;
-
-    if (key == KC_LEFT_SHIFT || key == KC_RIGHT_SHIFT)
+    if (keycode == KC_LEFT_SHIFT || keycode == KC_RIGHT_SHIFT)
     {
-        app->input_map_state.shift_state = (keycode & 0b10000000) > 0;
+        app->input_map_state.shift_state = pressed;
     }
-    if (key == KC_LEFT_CTRL || key == KC_RIGHT_CTRL)
+    if (keycode == KC_LEFT_CTRL || keycode == KC_RIGHT_CTRL)
     {
-        app->input_map_state.shift_state = (keycode & 0b10000000) > 0;
+        app->input_map_state.shift_state = pressed;
     }
-    if (key == KC_LEFT_ALT || key == KC_RIGHT_ALT)
+    if (keycode == KC_LEFT_ALT || keycode == KC_RIGHT_ALT)
     {
-        app->input_map_state.shift_state = (keycode & 0b10000000) > 0;
+        app->input_map_state.shift_state = pressed;
     }
     if (app->current_focus != NULL && app->current_focus->handle_input != NULL)
     {
@@ -887,16 +935,100 @@ void gob_app_handle_input(GobApp *app, EstrosKeycode keycode)
         event.shift_pressed = app->input_map_state.shift_state;
         event.alt_pressed = app->input_map_state.alt_state;
         event.ctrl_pressed = app->input_map_state.ctrl_state;
-        event.pressed = (keycode & 0b10000000) == 0;
-        event.keycode = key;
+        event.pressed = pressed;
+        event.keycode = keycode;
         app->current_focus->handle_input(app->current_focus, event);
     }
+}
+
+typedef struct
+{
+    int32_t current_entry_count;
+    GobElement prev_calc_labels[PREV_LABEL_TOTAL_COUNT];
+} CalcAppData;
+
+void prepare_calc_string(char *src, char *dest, int32_t max_len)
+{
+    int32_t src_len = strnlen(src, max_len);
+    int32_t dest_len = strnlen(dest, max_len);
+    if (src_len > max_len)
+    {
+        int32_t i = 0;
+        for (; i < max_len - 3; i++)
+        {
+            dest[i] = src[i];
+        }
+        for (; i < max_len; i++)
+        {
+            dest[i] = '.';
+        }
+    }
+    else if (src_len < max_len)
+    {
+        int32_t i = 0;
+        for (; i < src_len; i++)
+        {
+            dest[i] = src[i];
+        }
+        for (int32_t i = src_len; i < max_len; i++)
+        {
+            dest[i] = ' ';
+        }
+    }
+    else
+    {
+        strncpy(dest, src, max_len);
+    }
+}
+void accept_math_input(GobElement *elem, char *text)
+{
+    char *error_msg = NULL;
+    CalcExpression operation_array[100];
+    uint32_t max_operations = sizeof(operation_array) / sizeof(CalcExpression);
+    uint32_t operation_count = 0;
+    if (!parse_input(text, strnlen(text, 255), &error_msg, operation_array, max_operations, &operation_count))
+    {
+        gob_app_set_status(elem->app, error_msg);
+        return;
+    }
+    number_t result;
+    if (!execute(operation_array, operation_count, &result, &error_msg))
+    {
+        gob_app_set_status(elem->app, error_msg);
+        return;
+    }
+    CalcAppData *calc_data = (CalcAppData *)elem->app->internal;
+
+    // we have to shift all objects by 1
+    for (int32_t i = PREV_LABEL_TOTAL_COUNT - 1; i > 0; i--)
+    {
+        strcpy(((GobLabelData *)calc_data->prev_calc_labels[i].internal)->text, ((GobLabelData *)calc_data->prev_calc_labels[i - 1].internal)->text);
+    }
+
+    char temp[100];
+    char op_str[100];
+    prepare_calc_string(text, op_str, 5);
+    gob_sprintf(temp, "%s = %10.5f", op_str, result);
+
+    gob_app_set_status(elem->app, "");
+
+    GobElement *calc_elem = &calc_data->prev_calc_labels[0];
+    strcpy(((GobLabelData *)calc_elem->internal)->text, temp);
+    gob_app_render(elem->app);
+
+    GobInputBoxData *elem_data = (GobInputBoxData *)elem->internal;
+    memset(elem_data->input_buffer, 0, 255);
+    elem_data->buffer_pos = 0;
 }
 
 int main()
 {
     File *kdb = open_file("/dev/kdb", ESTROS_READ);
     GobApp app;
+    CalcAppData data;
+    data.current_entry_count = PREV_LABEL_TOTAL_COUNT - 1;
+
+    app.internal = &data;
     app.running = true;
     GobElement input_temp_label;
     GobElement input_box;
@@ -904,18 +1036,25 @@ int main()
     char buffer[255];
     gob_sprintf(buffer, "(%f / %d) * (%u / %u) - %f * (%.3f + 2)", 5.2323, 2, 69, 420, 232.232, 9.1233456);
     gob_init_label(&input_temp_label, buffer, 20, 5, EC_Blue, EC_White);
-    gob_init_input(&input_box, 20, 20, 20, EC_Black, EC_LightGray, EC_White, EC_DarkGray);
-    gob_init_input(&input_box2, 20, 10, 20, EC_Black, EC_LightGray, EC_White, EC_DarkGray);
+    gob_init_input(&input_box, 0, 23, 80, EC_Black, EC_LightGray, EC_White, EC_DarkGray, accept_math_input);
     gob_init_app(&app, get_text_buffer_address(), 80, 25, EC_Green);
     gob_app_add_element(&app, &input_temp_label);
     gob_app_add_element(&app, &input_box);
-    gob_app_add_element(&app, &input_box2);
+
+    for (int32_t i = 0; i < PREV_LABEL_TOTAL_COUNT - 1; i++)
+    {
+        gob_init_label(&data.prev_calc_labels[i], "", 0, PREV_LABEL_TOTAL_COUNT - i, EC_Black, EC_LightGray);
+        gob_app_add_element(&app, &data.prev_calc_labels[i]);
+    }
     gob_app_set_status(&app, "hello looser!");
     gob_app_render(&app);
 
     while (app.running)
     {
-        gob_app_handle_input(&app, scancode_to_keycode(wait_for_keypress(kdb)));
+
+        bool pressed;
+        EstrosKeycode code = scancode_to_keycode(wait_for_key(kdb, &pressed));
+        gob_app_handle_input(&app, code, pressed);
     }
     return 0;
 
