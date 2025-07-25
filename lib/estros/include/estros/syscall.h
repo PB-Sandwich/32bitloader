@@ -20,6 +20,7 @@ enum {
     // process
     SYSCALL_GET_CURRENT_PROCESS = 0x20,
     SYSCALL_CREATE_PROCESS = 0x21,
+    SYSCALL_EXIT = 0x22
 };
 
 #endif

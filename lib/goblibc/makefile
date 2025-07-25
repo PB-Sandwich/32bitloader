@@ -1,8 +1,11 @@
 .PHONY: all
 
 INCLUDE_DIR := lib/goblibc/include
+ESTROS_INCLUDE_DIR := lib/estros/include
+
 CC := x86_64-elf-gcc
-CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -I $(INCLUDE_DIR)
+CFLAGS := -nostdlib -ffreestanding -Wall -Wextra -g -m32 -I $(INCLUDE_DIR) -I $(ESTROS_INCLUDE_DIR)
+
 BUILD_DIR := build/lib/goblibc
 SOURCE_DIR := lib/goblibc/src
 
@@ -39,7 +42,7 @@ all: $(TARGETS)
 $(BUILD_DIR)/%.c.o: $(SOURCE_DIR)/%.c
 	@echo "Compiling $<"
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $< 
 
 
 
