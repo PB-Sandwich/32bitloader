@@ -26,7 +26,7 @@ uint32_t get_free_pid()
     return pid;
 }
 
-struct process* create_process(char* name, uint8_t start_state, uint32_t entry_point, uint32_t stack_base,
+struct process* create_process(char* name, uint8_t start_state, uint32_t entry_point, uint32_t stack_base_current_table, uint32_t stack_base_apps_table,
     PageTable* table, VFSFile* stdout, VFSFile* stdin, VFSFile* stderr)
 {
     if (strlen(name) > 64 - 1 || strlen(name) == 0) {
@@ -62,11 +62,13 @@ struct process* create_process(char* name, uint8_t start_state, uint32_t entry_p
     entry->prev = prev;
     entry->next = next;
 
-    uintptr_t esp = stack_base - sizeof(struct registers) - sizeof(struct interrupt_frame);
-    esp &= ~0xF; // align to 16 bytes
+    uintptr_t real_esp = stack_base_apps_table - sizeof(struct registers) - sizeof(struct interrupt_frame);
+    real_esp &= ~0xF; // align to 16 bytes
+    uintptr_t cur_esp = stack_base_current_table - sizeof(struct registers) - sizeof(struct interrupt_frame);
+    cur_esp &= ~0xF; // align to 16 bytes
 
     struct process* process = &entry->process;
-    process->esp = esp;
+    process->esp = real_esp;
     process->id = get_free_pid();
     process->page_table = table;
     process->stdout = stdout;
@@ -76,8 +78,8 @@ struct process* create_process(char* name, uint8_t start_state, uint32_t entry_p
     memcpy(process->name, name, strlen(name));
 
     struct registers regs = { 0 };
-    regs.esp = esp + sizeof(struct interrupt_frame);
-    regs.ebp = stack_base;
+    regs.esp = real_esp + sizeof(struct interrupt_frame);
+    regs.ebp = stack_base_apps_table ;
 
     struct interrupt_frame frame = { 0 };
     frame.eip = entry_point;
@@ -113,8 +115,8 @@ struct process* create_process(char* name, uint8_t start_state, uint32_t entry_p
     );
     frame.eflags |= 1 << 9; // make sure the interrupt flag is set
 
-    memcpy((void*)esp + sizeof(struct registers), &frame, sizeof(struct interrupt_frame));
-    memcpy((void*)esp, &regs, sizeof(struct registers));
+    memcpy((void*)cur_esp + sizeof(struct registers), &frame, sizeof(struct interrupt_frame));
+    memcpy((void*)cur_esp, &regs, sizeof(struct registers));
 
     number_of_processes++;
     next->prev = entry;
@@ -163,6 +165,10 @@ void remove_process(uint32_t id)
 
     prev->next = next;
     next->prev = prev;
+
+    if (entry == first_process) {
+        first_process = next;
+    }
 
     free(entry);
 

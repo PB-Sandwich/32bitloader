@@ -27,17 +27,6 @@ uintptr_t virt_to_phys(uintptr_t virtual_address, PDETable* table)
     return base_addr + physical_index;
 }
 
-void* alloc_table()
-{
-    page_tables_end += sizeof(PageTable);
-    return page_tables_end - sizeof(PageTable);
-}
-
-void free_table(PageTable* table)
-{
-    return;
-}
-
 struct FreeMemoryBlock {
     void* start;
     void* end;
@@ -122,6 +111,36 @@ void pager_fill(void* start, void* end)
     }
 }
 
+void* alloc_table()
+{
+    page_tables_end += sizeof(PageTable);
+    return page_tables_end - sizeof(PageTable);
+}
+
+void free_pte_table(PTETable* table)
+{
+    for (int i = 0; i < TABLE_ENTRIES_LENGTH; i++) {
+        if (table->entries[i].present) {
+            void* page = (void*)(table->entries[i].physical_page_address << 12);
+            pager_fill(page, page + PAGE_SIZE - 1);
+        }
+    }
+    printf("Add a way to actually free the tables\n"); // TODO:
+    return;
+}
+
+void free_pde_table(PDETable* table)
+{
+    for (int i = 0; i < TABLE_ENTRIES_LENGTH; i++) {
+        if (table->entries[i].present) {
+            void* page_table = (void*)(table->entries[i].page_table_address << 12);
+            free_pte_table(page_table);
+        }
+    }
+    printf("Add a way to actually free the tables\n"); // TODO:
+    return;
+}
+
 // returns the index into the last level of tables as a flat value
 // ex: first free is PDE[1] PTE[5] -> 1 * 1024 + 5
 uint32_t get_free_page_index(PageTable* table)
@@ -134,7 +153,7 @@ uint32_t get_free_page_index(PageTable* table)
 
         PTETable* sub_table = (void*)(table->pde.entries[i].page_table_address << 12);
 
-        for (int j = 0; j < TABLE_ENTRIES_LENGTH; j++) {
+        for (uint32_t j = 0; j < TABLE_ENTRIES_LENGTH; j++) {
             if (!sub_table->entries[j].present) {
                 return j + i * TABLE_ENTRIES_LENGTH;
             }

@@ -1,7 +1,11 @@
 #include "error_handlers.h"
+#include <exit.h>
 #include <print.h>
 #include <terminal/tty.h>
-#include <exit.h>
+
+void kill_app(uint32_t error_code)
+{
+}
 
 void divide_by_zero(struct interrupt_frame* frame)
 {

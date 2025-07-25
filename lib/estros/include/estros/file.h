@@ -2,6 +2,7 @@
 #define ESTROS_FILE_H
 
 #include <stdint.h>
+#include <estros/syscall.h>
 
 typedef enum
 {
@@ -44,50 +45,50 @@ typedef struct
 static inline File *open_file(char *path, FileFlags flags)
 {
     File *ret = 0;
-    __asm__ volatile("int $0x40\n\t" : "=b"(ret) : "a"(2), "b"(path), "c"(flags));
+    __asm__ volatile("int $0x40\n\t" : "=b"(ret) : "a"(SYSCALL_OPEN), "b"(path), "c"(flags));
     return ret;
 }
 
 static inline void close_file(File *file)
 {
-    __asm__ volatile("int $0x40\n\t" ::"a"(3), "b"(file));
+    __asm__ volatile("int $0x40\n\t" ::"a"(SYSCALL_CLOSE), "b"(file));
 }
 
 static inline uint32_t read_file(File *file, void *buffer, uint32_t buffer_size)
 {
     uint32_t ret;
-    __asm__ volatile("int $0x40\n\t" : "=a"(ret) : "a"(4), "b"(file), "c"(buffer_size), "d"(buffer));
+    __asm__ volatile("int $0x40\n\t" : "=a"(ret) : "a"(SYSCALL_READ), "b"(file), "c"(buffer_size), "d"(buffer));
     return ret;
 }
 
 static inline uint32_t write_file(File *file, void *buffer, uint32_t buffer_size)
 {
     uint32_t ret;
-    __asm__ volatile("int $0x40\n\t" : "=a"(ret) : "a"(5), "b"(file), "c"(buffer_size), "d"(buffer));
+    __asm__ volatile("int $0x40\n\t" : "=a"(ret) : "a"(SYSCALL_WRITE), "b"(file), "c"(buffer_size), "d"(buffer));
     return ret;
 }
 
 static inline void ioctl(File *file, uint32_t *command, uint32_t *arg)
 {
-    __asm__ volatile("int $0x40\n\t" ::"a"(6), "b"(file), "c"(command), "d"(arg));
+    __asm__ volatile("int $0x40\n\t" ::"a"(SYSCALL_IOCTL), "b"(file), "c"(command), "d"(arg));
 }
 
 static inline void seek_file(File *file, uint32_t offset, Whence whence)
 {
-    __asm__ volatile("int $0x40\n\t" ::"a"(7), "b"(file), "c"(offset), "d"(whence));
+    __asm__ volatile("int $0x40\n\t" ::"a"(SYSCALL_SEEK), "b"(file), "c"(offset), "d"(whence));
 }
 
 static inline uint32_t tell_file(File *file)
 {
     uint32_t ret;
-    __asm__ volatile("int $0x40\n\t" : "=c"(ret) : "a"(8), "b"(file));
+    __asm__ volatile("int $0x40\n\t" : "=c"(ret) : "a"(SYSCALL_TELL), "b"(file));
     return ret;
 }
 
 static inline uint32_t create_file(char *path)
 {
     uint32_t ret;
-    __asm__ volatile("int $0x40\n\t" : "=a"(ret) : "a"(9), "b"(path));
+    __asm__ volatile("int $0x40\n\t" : "=a"(ret) : "a"(SYSCALL_CREATE_FILE), "b"(path));
     return ret;
 }
 

@@ -1,0 +1,25 @@
+#ifndef ESTROS_SYSCALL_C
+#define ESTROS_SYSCALL_C
+
+enum {
+    // filesystem
+    SYSCALL_OPEN = 0x02,
+    SYSCALL_CLOSE = 0x03,
+    SYSCALL_READ = 0x04,
+    SYSCALL_WRITE = 0x05,
+    SYSCALL_IOCTL = 0x06,
+    SYSCALL_SEEK = 0x07,
+    SYSCALL_TELL = 0x08,
+    SYSCALL_CREATE_FILE = 0x09,
+
+    // paging
+    SYSCALL_REQUEST_NEW_PAGE = 0x10,
+    SYSCALL_FREE_PAGE = 0x11,
+    SYSCALL_CREATE_NEW_TABLE = 0x12,
+
+    // process
+    SYSCALL_GET_CURRENT_PROCESS = 0x20,
+    SYSCALL_CREATE_PROCESS = 0x21,
+};
+
+#endif

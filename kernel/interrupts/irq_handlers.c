@@ -1,4 +1,5 @@
 #include "irq_handlers.h"
+#include "filesystem/virtual-filesystem.h"
 #include "pager.h"
 #include <inboutb.h>
 #include <keyboard/keyboard.h>
@@ -32,6 +33,31 @@ uint32_t irq0_timer_c(uint32_t* esp)
     current->esp = (uint32_t)esp;
 
     struct process* next = get_next_process();
+    while (next->state != PROCESS_RUNNING) {
+        switch (next->state) {
+        case PROCESS_RUNNING:
+            break;
+        case PROCESS_SLEEPING:
+            if (time.seconds >= next->wake_time.seconds && time.millisecond >= next->wake_time.millisecond) {
+                next->state = PROCESS_RUNNING;
+                break;
+            } else {
+                next = get_next_process();
+            }
+        case PROCESS_TERMINATED:
+            free_pde_table(&next->page_table->pde);
+            vfs_close_file(next->stdout);
+            vfs_close_file(next->stdin);
+            vfs_close_file(next->stderr);
+            uint32_t id = next->id;
+            next = get_next_process();
+            remove_process(id);
+            break;
+        default:
+            next = get_next_process();
+            break;
+        }
+    }
 
     outb(PIC1_CMD, PIC_EOI);
     __asm__ volatile("mov %0, %%ebx\n\t" ::"r"(&next->page_table->pde));

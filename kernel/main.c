@@ -166,17 +166,6 @@ __attribute__((section(".text.start"))) void kernel_entry(struct GDT* gdt)
 
 PageTable* kernel_table;
 
-void print_time()
-{
-    uint32_t start_time = time.seconds;
-    while (1) {
-        if (start_time < time.seconds) {
-            printf("uptime is %ds\n", time.seconds);
-            start_time = time.seconds;
-        }
-    }
-}
-
 void main()
 {
     init_heap((uint8_t*)0x210000, 0x90000);
@@ -227,12 +216,7 @@ void main()
     // testing
 
     uint32_t stack0 = (uint32_t)new_page(PAGER_ERROR, &kernel_table->pde, 0);
-    uint32_t stack1 = (uint32_t)new_page(PAGER_ERROR, &kernel_table->pde, 0);
-    uint32_t stack2 = (uint32_t)new_page(PAGER_ERROR, &kernel_table->pde, 0);
-
-    struct process* p0 = create_process("Dummy", PROCESS_RUNNING, (uint32_t)NULL, stack0 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
-    //create_process("Time", PROCESS_RUNNING, (uint32_t)inc_time, stack1 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
-    create_process("Print", PROCESS_RUNNING, (uint32_t)print_time, stack2 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
+    struct process* p0 = create_process("dummy", PROCESS_RUNNING, (uint32_t)NULL, stack0 + PAGE_SIZE - 16, stack0 + PAGE_SIZE - 16, kernel_table, NULL, NULL, NULL);
     set_current_process(p0->id);
 
     PageTable* app = soft_copy_table((PageTable*)kernel_table, 1);
@@ -243,7 +227,7 @@ void main()
         ;
     uint32_t app_stack = (uint32_t)new_page(PAGER_ERROR, &app->pde, 0);
 
-    VFSFile* file = vfs_open_file("/apps/brainfuck.bin", VFS_READ);
+    VFSFile* file = vfs_open_file("/apps/new_test.bin", VFS_READ);
 
     if (file == NULL) {
         printf("Unable to open file\n");
@@ -264,7 +248,7 @@ void main()
 
     VFSFile* tty = vfs_open_file("/dev/tty", VFS_READ | VFS_WRITE);
 
-    create_process("brainfuck", PROCESS_RUNNING, entry_point, app_stack + PAGE_SIZE - 16, app, tty, tty, tty);
+    create_process("new_test", PROCESS_RUNNING, entry_point, app_stack + PAGE_SIZE - 16, app_stack + PAGE_SIZE - 16, app, tty, tty, tty);
 
     load_page_table(&kernel_table->pde);
 
