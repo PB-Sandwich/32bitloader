@@ -126,7 +126,7 @@ enum CodeRunResult step_code(CodeExecutionData *data, bool has_input, char input
         data->mem_pos--;
         break;
     case '.':
-        sys_print(data->memory + data->mem_pos, 1);
+        sys_print(&data->memory[data->mem_pos], 1);
         break;
     case ',':
         if (!has_input)
@@ -420,6 +420,7 @@ void run_mode(AppState *app, bool has_input, Input input)
 
 void help_mode(AppState *app, Input input)
 {
+    display_help();
     if (input.keycode == KC_ESC)
     {
         app->current_mode = EEM_Command;
@@ -469,6 +470,10 @@ int main()
         }
         else
         {
+            if (app.current_mode == EEM_ViewingHelp)
+            {
+                display_help();
+            }
 
             KeyboardEvent event;
             while (!read_file(app.kdb, &event, sizeof(KeyboardEvent)))

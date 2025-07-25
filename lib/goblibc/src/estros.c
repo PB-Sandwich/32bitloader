@@ -25,9 +25,7 @@ void sys_clear()
 
 void sys_set_cursor(uint16_t x, uint16_t y)
 {
-    uint32_t stdout = 0;
     uint32_t command = 3;
     uint32_t arg = (x << 16) | y;
-    __asm__ volatile("int $0x40" : "=b"(stdout) : "a"(1));
-    __asm__ volatile("int $0x40" ::"a"(6), "b"(stdout), "c"(&command), "d"(arg));
+    __asm__ volatile("int $0x40" ::"a"(6), "b"(estros_stdout), "c"(&command), "d"(arg));
 }
