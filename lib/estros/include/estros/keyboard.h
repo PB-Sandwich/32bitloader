@@ -3,6 +3,7 @@
 
 #include <estros/file.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef enum
 {
@@ -125,7 +126,6 @@ enum Keycode
     KC_LEFT_GUI,
     KC_RIGHT_GUI,
 };
-
 
 uint8_t ascii_table[256] = {
     [0x02] = '1',
@@ -250,10 +250,20 @@ enum Keycode scancode_to_keycode(uint8_t sc)
 
 enum Keycode wait_for_keypress(File *kdb_file)
 {
-    KeyboardEvent event = { 0 };
+    KeyboardEvent event = {0};
     while (!read_file(kdb_file, &event, sizeof(KeyboardEvent)) || event.type != KEY_PRESSED)
         ;
     ;
+    return scancode_to_keycode(event.scancode);
+}
+
+enum Keycode wait_for_key(File *kdb_file, bool *pressed)
+{
+    KeyboardEvent event = {0};
+    while (!read_file(kdb_file, &event, sizeof(KeyboardEvent)))
+        ;
+    ;
+    *pressed = event.type == KEY_PRESSED;
     return scancode_to_keycode(event.scancode);
 }
 

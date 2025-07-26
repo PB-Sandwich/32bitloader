@@ -11,7 +11,11 @@
 #pragma once
 #include <stdint.h>
 #include <stdarg.h>
+#include <estros/file.h>
 
+extern File *estros_stdin;
+extern File *estros_stdout;
+extern File *estros_stderr;
 
 enum Colors
 {
@@ -36,8 +40,7 @@ enum Colors
 /// @brief Colors available to use in the text buffer
 typedef enum Colors KernelTerminalColors;
 
-
-uint16_t* get_text_buffer_address();
+uint16_t *get_text_buffer_address();
 
 /// @brief Wrapper around syscall used for printing text into the standard output
 /// @param str Pointer to the string to be displayed
@@ -45,7 +48,7 @@ uint16_t* get_text_buffer_address();
 void sys_print(const char *str, uint32_t len);
 
 /// @brief Wrapper around syscall used for reading text from standard input
-/// @param buffer Pointer to the buffer where symbols will be written to 
+/// @param buffer Pointer to the buffer where symbols will be written to
 /// @param len Length of the buffer
 /// @return How many bytes were written
 uint32_t sys_read(char *buffer, uint32_t len);

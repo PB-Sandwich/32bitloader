@@ -126,7 +126,7 @@ enum CodeRunResult step_code(CodeExecutionData *data, bool has_input, char input
         data->mem_pos--;
         break;
     case '.':
-        sys_print(data->memory + data->mem_pos, 1);
+        sys_print(&data->memory[data->mem_pos], 1);
         break;
     case ',':
         if (!has_input)
@@ -202,6 +202,12 @@ void reset_display(const char *code)
     sys_set_cursor(0, 0);
     sys_clear();
     sys_print(code, strlen(code));
+}
+
+void prepare_for_exec()
+{
+    sys_set_cursor(0, 0);
+    sys_clear();
 }
 
 void display_help()
@@ -345,6 +351,7 @@ void command_mode(AppState *app, Input input)
         else if (strncmp(app->command_buffer, "run", 50) == 0 || strncmp(app->command_buffer, "r", 50) == 0)
         {
             app->current_mode = EEM_Running;
+            prepare_for_exec();
             init_exec_data(&app->exec_data, app->code_buffer, sizeof(app->code_buffer));
             return;
         }
@@ -382,7 +389,7 @@ void command_mode(AppState *app, Input input)
 
 void run_mode(AppState *app, bool has_input, Input input)
 {
-    if (app->current_mode != EEM_Running)
+    if (app->current_mode != EEM_Running && app->current_mode != EEM_RunningWaitingForInput)
     {
         return;
     }
@@ -392,10 +399,13 @@ void run_mode(AppState *app, bool has_input, Input input)
         app->current_mode = EEM_RunningFinished;
         return;
     }
-    sys_clear();
+    // sys_clear();
     enum CodeRunResult res = step_code(&app->exec_data, has_input, keycode_to_ascii(input.keycode, input.shift_pressed));
     switch (res)
     {
+    case ECRR_Unfinished:
+        app->current_mode = EEM_Running;
+        break;
     case ECRR_ExpectInput:
         app->current_mode = EEM_RunningWaitingForInput;
         break;
@@ -420,6 +430,7 @@ void run_mode(AppState *app, bool has_input, Input input)
 
 void help_mode(AppState *app, Input input)
 {
+    display_help();
     if (input.keycode == KC_ESC)
     {
         app->current_mode = EEM_Command;
@@ -465,10 +476,14 @@ int main()
                 input.keycode = scancode_to_keycode(event.scancode);
                 input.shift_pressed = app.shift_state;
             }
-            run_mode(&app, in_len > 0, input);
+            run_mode(&app, in_len > 0 && event.type == KEY_PRESSED, input);
         }
         else
         {
+            if (app.current_mode == EEM_ViewingHelp)
+            {
+                display_help();
+            }
 
             KeyboardEvent event;
             while (!read_file(app.kdb, &event, sizeof(KeyboardEvent)))
