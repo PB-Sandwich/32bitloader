@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <errno.h>
+#include <estros/syscall.h>
 
 uint8_t *heap = NULL;
 uint32_t heap_size = 0;
@@ -403,4 +404,9 @@ long long stroll(const char *start, char **end, int base)
     }
 
     return result;
+}
+
+void exit(int code)
+{
+    __asm__ volatile("int $0x40" ::"a"(SYSCALL_EXIT), "b"(code));
 }

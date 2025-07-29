@@ -54,6 +54,7 @@ static void *get_arg_at(va_list arg_list, unsigned int i)
     return p;
 }
 
+
 int gob_vfscanf(FILE *file, const char *fmt, va_list args)
 {
     int width;
