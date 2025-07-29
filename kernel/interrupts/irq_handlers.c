@@ -46,9 +46,6 @@ uint32_t irq0_timer_c(uint32_t* esp)
             }
         case PROCESS_TERMINATED:
             free_pde_table(&next->page_table->pde);
-            vfs_close_file(next->stdout);
-            vfs_close_file(next->stdin);
-            vfs_close_file(next->stderr);
             uint32_t id = next->id;
             next = get_next_process();
             remove_process(id);

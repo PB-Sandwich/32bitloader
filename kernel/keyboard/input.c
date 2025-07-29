@@ -55,7 +55,10 @@ uint8_t* get_line(void (*printchar)(char))
             continue;
         }
 
-        if (kc == KC_BACKSPACE && i > 0) {
+        if (kc == KC_BACKSPACE ) {
+            if (i < 1) {
+                continue;
+            }
             buffer[i] = '\0';
             printchar('\b');
             printchar(' ');
