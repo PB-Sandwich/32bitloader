@@ -14,8 +14,8 @@ int app_main()
     estros_stdout = p->stdout;
     estros_stderr = p->stderr;
     init_heap((uint8_t *)0x500000, 0x100000);
-    main();
-    __asm__ volatile("int $0x40" ::"a"(SYSCALL_EXIT), "b"(0));
+    int res = main();
+    exit(res);
     // finish();
     // return 0;
 }

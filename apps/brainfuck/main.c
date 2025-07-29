@@ -46,6 +46,7 @@ enum EditorMode
     EEM_RunningWaitingForInput,
     EEM_RunningFinished,
     EEM_ViewingHelp,
+    EEM_ErrorMessage,
     EEM_Exit
 };
 
@@ -232,7 +233,7 @@ void display_help()
         * '[' - if current cell is 0, move to matching ']'\n\
         * ']' - if current cell is NOT 0, move to matching '['\n\
         * ',' - accept one byte of input\n\
-        * ']' - print value of current memory cell as ASII\n\
+        * '.' - print value of current memory cell as ASII\n\
         There are 300 cells each storing value in range of 0 to 255 \n\
         Press ESC - to exit help\n\
         ";
@@ -323,6 +324,11 @@ void editor_mode(AppState *app, Input input)
 
 void command_mode(AppState *app, Input input)
 {
+
+    for (int i = 0; i < sizeof(app->command_buffer); i++)
+    {
+        app->command_text_buffer[i] = (((EC_Black << 4) | EC_Green) << 8) | app->command_buffer[i];
+    }
     enum Keycode last_key_keycode = input.keycode;
     switch (last_key_keycode)
     {
@@ -355,7 +361,63 @@ void command_mode(AppState *app, Input input)
             init_exec_data(&app->exec_data, app->code_buffer, sizeof(app->code_buffer));
             return;
         }
+        // check if first 2 characters are write operation command
+        else if (strncmp(app->command_buffer, "w ", 2) == 0)
+        {
+            const char *command = app->command_buffer + 1;
+            // skip whitespace
+            for (; *command == ' ' && command - app->command_buffer < 50; command++)
+                ;
+            File *dest_file = open_file(command, ESTROS_WRITE);
+            if (dest_file == NULL)
+            {
+                if (create_file(command) != 0)
+                {
+                    write_text_to_status_bar("Failed to open file! ESC to continue", ((EC_Red) << 4 | EC_Black), app->command_text_buffer);
+                    app->current_mode = EEM_ErrorMessage;
+                    return;
+                }
+                else
+                {
+                    dest_file = open_file(command, ESTROS_WRITE);
+                }
+            }
+            write_file(dest_file, app->code_buffer, strnlen(app->code_buffer, sizeof(app->code_buffer)));
+            write_text_to_status_bar("Saved code! ESC to continue", ((EC_Green) << 4 | EC_Black), app->command_text_buffer);
+            app->current_mode = EEM_ErrorMessage;
+        }
+        else if (strncmp(app->command_buffer, "l ", 2) == 0)
+        {
+            const char *command = app->command_buffer + 1;
+            // skip whitespace
+            for (; *command == ' ' && command - app->command_buffer < 50; command++)
+                ;
+            File *dest_file = open_file(command, ESTROS_READ);
+            if (dest_file == NULL)
+            {
+                write_text_to_status_bar("Failed to read file! ESC to continue", ((EC_Red) << 4 | EC_Black), app->command_text_buffer);
+                app->current_mode = EEM_ErrorMessage;
+                return;
+            }
 
+            memset(app->code_buffer, 0, sizeof(app->code_buffer));
+            memset(app->command_buffer, 0, sizeof(app->command_buffer));
+            app->command_display_offset = 0;
+            app->command_text_offset = 0;
+            app->current_mode = EEM_Editing;
+
+            read_file(dest_file, app->code_buffer, sizeof(app->code_buffer));
+            app->code_text_offset = strlen(app->code_buffer);
+            app->code_len = strlen(app->code_buffer);
+            reset_display(app->code_buffer);
+            return;
+        }
+        else
+        {
+            write_text_to_status_bar("Unknown command! ESC to continue", ((EC_Red) << 4 | EC_Black), app->command_text_buffer);
+            app->current_mode = EEM_ErrorMessage;
+            return;
+        }
         break;
     case KC_BACKSPACE:
 
@@ -376,7 +438,7 @@ void command_mode(AppState *app, Input input)
     {
 
         uint8_t ch = keycode_to_ascii(last_key_keycode, input.shift_pressed); // kernel_exports->keycode_to_ascii(last_key_keycode);
-        if (isalnum(ch) && app->command_text_offset < sizeof(app->command_buffer))
+        if ((isalnum(ch) || ch == '\\' || ch == '/' || ch == ' ' || ch == '.') && app->command_text_offset < sizeof(app->command_buffer))
         {
             app->command_buffer[app->command_text_offset] = ch;
             app->command_text_buffer[app->command_display_offset] = (((EC_Black << 4) | EC_Green) << 8) | ch;
@@ -484,6 +546,13 @@ int main()
             {
                 display_help();
             }
+            else if (app.current_mode == EEM_Command)
+            {
+                for (int i = 0; i < sizeof(app.command_buffer); i++)
+                {
+                    app.command_text_buffer[i] = (((EC_Black << 4) | EC_Green) << 8) | app.command_buffer[i];
+                }
+            }
 
             KeyboardEvent event;
             while (!read_file(app.kdb, &event, sizeof(KeyboardEvent)))
@@ -504,6 +573,13 @@ int main()
             {
             case EEM_ViewingHelp:
                 help_mode(&app, input);
+                break;
+            case EEM_ErrorMessage:
+                if (input.keycode == KC_ESC)
+                {
+                    app.current_mode = EEM_Command;
+                    reset_display(app.code_buffer);
+                }
                 break;
             case EEM_RunningFinished:
                 if (input.keycode == KC_TAB)

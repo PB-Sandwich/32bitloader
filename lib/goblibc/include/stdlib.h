@@ -28,6 +28,11 @@ void *malloc(uint32_t size);
 void *realloc(void *ptr, uint32_t size);
 void free(void *ptr);
 
+
+/// @brief Exit application with the given return code
+/// @param code Return code
+void exit(int code);
+
 #ifndef MIN
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
