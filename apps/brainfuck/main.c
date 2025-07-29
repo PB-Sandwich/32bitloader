@@ -233,7 +233,7 @@ void display_help()
         * '[' - if current cell is 0, move to matching ']'\n\
         * ']' - if current cell is NOT 0, move to matching '['\n\
         * ',' - accept one byte of input\n\
-        * ']' - print value of current memory cell as ASII\n\
+        * '.' - print value of current memory cell as ASII\n\
         There are 300 cells each storing value in range of 0 to 255 \n\
         Press ESC - to exit help\n\
         ";
@@ -324,6 +324,11 @@ void editor_mode(AppState *app, Input input)
 
 void command_mode(AppState *app, Input input)
 {
+
+    for (int i = 0; i < sizeof(app->command_buffer); i++)
+    {
+        app->command_text_buffer[i] = (((EC_Black << 4) | EC_Green) << 8) | app->command_buffer[i];
+    }
     enum Keycode last_key_keycode = input.keycode;
     switch (last_key_keycode)
     {
@@ -396,14 +401,14 @@ void command_mode(AppState *app, Input input)
             }
 
             memset(app->code_buffer, 0, sizeof(app->code_buffer));
-            memset(app->text_buffer, 0, 160 * 50);
             memset(app->command_buffer, 0, sizeof(app->command_buffer));
             app->command_display_offset = 0;
-            app->code_text_offset = 0;
             app->command_text_offset = 0;
             app->current_mode = EEM_Editing;
 
             read_file(dest_file, app->code_buffer, sizeof(app->code_buffer));
+            app->code_text_offset = strlen(app->code_buffer);
+            app->code_len = strlen(app->code_buffer);
             reset_display(app->code_buffer);
             return;
         }
@@ -540,6 +545,13 @@ int main()
             if (app.current_mode == EEM_ViewingHelp)
             {
                 display_help();
+            }
+            else if (app.current_mode == EEM_Command)
+            {
+                for (int i = 0; i < sizeof(app.command_buffer); i++)
+                {
+                    app.command_text_buffer[i] = (((EC_Black << 4) | EC_Green) << 8) | app.command_buffer[i];
+                }
             }
 
             KeyboardEvent event;
